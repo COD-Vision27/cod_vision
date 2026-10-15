@@ -1,0 +1,62 @@
+[
+  {
+    "file": "README.md",
+    "restored_sha256": "8a3cb9b23435011d889a50e49a33c49e83508b170ea237db3fb3467d6bcaf8e9"
+  },
+  {
+    "file": "rm_interfaces/CMakeLists.txt",
+    "restored_sha256": "b65dbe8b6ecf90e2fae40c117a0c890383d435776e09f0201d02e03a00c9e27d"
+  },
+  {
+    "file": "rm_interfaces/msg/SpGimbalPlan.msg",
+    "removed": true
+  },
+  {
+    "file": "rm_interfaces/package.xml",
+    "restored_sha256": "a1e1e1df7e858fa8ba75d830b5d08304b04c803d8ea630af278d1554b65228f4"
+  },
+  {
+    "file": "src/config.rs",
+    "restored_sha256": "01b6e54ce20e08f5271c701e8d0e3614ed2f2563d0d8c224fa20f1bcd6a3b640"
+  },
+  {
+    "file": "src/main.rs",
+    "restored_sha256": "20ce786da1842eb0d5512ae93e13d9e4140e87ebeb0051896413ce0655097c89"
+  },
+  {
+    "file": "src/robomaster/armor/construct.rs",
+    "restored_sha256": "9f4501d39d12a7864471b2bcb24f5874d8561cf764afe2f2fe396b2fcf8f05c1"
+  },
+  {
+    "file": "src/ros2/capture.rs",
+    "restored_sha256": "c0350b6107635f6a19744c8d9e524c020580b58be0b40be5109db883495f269b"
+  },
+  {
+    "file": "src/ros2/plugin.rs",
+    "restored_sha256": "3d16459280984038f0b217244b8ce1b0ede598f79d253a1f0add90d6ac222569"
+  },
+  {
+    "file": "src/ros2/topic.rs",
+    "restored_sha256": "b843cfa5d2c7d3c373f3571e16e994ba92f5b75ebd5664c342e5f05f7ab3c022"
+  },
+  {
+    "file": "src/scene.rs",
+    "restored_sha256": "c5e98188fee91780b87a6a2d0c8f8658c5cd3386dfd8c04bbc75bffa98677580"
+  },
+  {
+    "file": "src/setup.rs",
+    "restored_sha256": "975e8684e7fb4b59fdea48505d498545c5d55c74bf8b3cfacf5ce78ab69b9527"
+  },
+  {
+    "file": "src/systems/controller.rs",
+    "restored_sha256": "ec30b81d9633642b890f33ad2ca8be0c1eb3f7c788708ab7a11c1170c3042b80"
+  },
+  {
+    "file": "src/systems/gimbal_pid.rs",
+    "restored_sha256": "d56cef3c3b635977e40dd570d1046b6c7eecff02791b4f698b69df48c318babd"
+  },
+  {
+    "file": "src/systems/projectile.rs",
+    "restored_sha256": "5acba4d6ab8820ccd6c85f1626181d83daca353cb6456816d9ec7739fe4c4aad"
+  }
+]

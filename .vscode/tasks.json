@@ -1,0 +1,97 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "远程：环境检查",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "tools/remote_run.py",
+        "doctor"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "远程：轻量检查",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "tools/remote_run.py",
+        "--python",
+        "/home/wuxian/miniconda3/envs/YOLO/bin/python",
+        "check"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": false
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "远程：完整测试",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "tools/remote_run.py",
+        "test"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "远程：构建",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "tools/remote_run.py",
+        "build"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "远程：本地查看仿真窗口",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "tools/sim_view.py"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "远程：目标机显示仿真窗口",
+      "type": "process",
+      "command": "python3",
+      "args": [
+        "tools/sim_view.py",
+        "--view",
+        "remote"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}"
+      },
+      "problemMatcher": []
+    }
+  ]
+}

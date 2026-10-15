@@ -1,0 +1,871 @@
+--- a/bevy_robomaster_simulator/rm_interfaces/CMakeLists.txt
++++ b/bevy_robomaster_simulator/rm_interfaces/CMakeLists.txt
+@@ -9,7 +9,7 @@
+ find_package(ament_cmake REQUIRED)
+ find_package(rosidl_default_generators REQUIRED)
+ find_package(geometry_msgs REQUIRED)
+-
++find_package(std_msgs REQUIRED)
+ 
+ rosidl_generate_interfaces(${PROJECT_NAME}
+   "msg/Armor.msg"
+@@ -29,6 +29,7 @@
+   "msg/OperatorCommand.msg"
+   "msg/SerialReceiveData.msg"
+   "msg/PlanGimbalCmd.msg"
++  "msg/SpGimbalPlan.msg"
+   "srv/SetMode.srv"
+   "srv/RunHandEyeCalibration.srv"
+   DEPENDENCIES
+--- a/bevy_robomaster_simulator/rm_interfaces/package.xml
++++ b/bevy_robomaster_simulator/rm_interfaces/package.xml
+@@ -14,7 +14,7 @@
+   <member_of_group>rosidl_interface_packages</member_of_group>
+ 
+   <depend>geometry_msgs</depend>
+-
++  <depend>std_msgs</depend>
+ 
+   <export>
+     <build_type>ament_cmake</build_type>
+--- a/bevy_robomaster_simulator/src/ros2/topic.rs
++++ b/bevy_robomaster_simulator/src/ros2/topic.rs
+@@ -6,7 +6,7 @@
+ use futures::channel::mpsc;
+ use futures::channel::mpsc::{Sender, TryRecvError};
+ use r2r::geometry_msgs::msg::PoseStamped;
+-use r2r::rm_interfaces::msg::GimbalCmd;
++use r2r::rm_interfaces::msg::{GimbalCmd, SpGimbalPlan};
+ use r2r::sensor_msgs::msg::{CameraInfo, CompressedImage, Image, PointCloud2};
+ use r2r::std_msgs::msg::String as RosString;
+ use r2r::tf2_msgs::msg::TFMessage;
+@@ -93,7 +93,7 @@
+ macro_rules! subscriber {
+     ($signal:expr, $app:ident, $node:ident, $($topic:ty),* $(,)?) => {
+         $(
+-            $app.insert_resource($crate::ros2::topic::subscriber::<$topic>($node, $signal));
++            $app.insert_resource($crate::ros2::topic::subscriber::<$topic>($node, ($signal).clone()));
+         )*
+     };
+ }
+@@ -149,6 +149,7 @@
+         "/image_compressed" as CompressedImage as ImageCompressedTopic;
+         "/livox/lidar" as PointCloud2 as LivoxPointCloudTopic;
+         "/tf" as TFMessage as GlobalTransformTopic;
++        "/sp_vision/sim/frame_tf" as TFMessage as SpFrameTfTopic;
+         "/simulator/marker" as Marker as OutpostMarkerTopic;
+         "/gimbal_pose" as PoseStamped as GimbalPoseTopic;
+         "/odom_pose" as PoseStamped as OdomPoseTopic;
+@@ -158,5 +159,6 @@
+     }
+     sub {
+         "/rm_gimbal/cmd" as GimbalCmd as GimbalCmdTopic with QosProfile::sensor_data();
++        "/sp_vision/sim/plan" as SpGimbalPlan as SpGimbalPlanTopic;
+     }
+ );
+--- a/bevy_robomaster_simulator/src/ros2/capture.rs
++++ b/bevy_robomaster_simulator/src/ros2/capture.rs
+@@ -1,27 +1,33 @@
+ //! ROS2 图像捕获实现
+ 
+ use crate::capture::{
+-    CameraFov, CaptureBundle, ImageHandle, compute_camera_intrinsics,
++    CameraFov, CaptureBundle, CaptureSource, ImageHandle, compute_camera_intrinsics,
+     driver::{
+         CaptureConfig, CaptureFrameId, CapturedFrame, CapturedFrameKind, GpuCaptureHandler,
+         SnapshotAsync, SnapshotSync,
+     },
+     setup_capture_camera, setup_preview_window, sync_capture_camera,
+ };
++use crate::components::{Controlled, Infantry, InfantryGimbal, InfantryLaunchOffset};
+ use crate::ros2::image::compress_image;
++use crate::ros2::prelude::M_ALIGN_MAT3;
++use crate::ros2::topic::SpFrameTfTopic;
+ use crate::ros2::topic::{CameraInfoTopic, ImageCompressedTopic, ImageRawTopic, TopicPublisher};
+ use crate::systems::GameplaySystems;
+ use bevy::ecs::world::DeferredWorld;
+ use bevy::prelude::*;
+-use bevy::render::{RenderApp, RenderSystems};
++use bevy::render::{Extract, ExtractSchedule, RenderApp, RenderSystems};
+ use r2r::Clock;
++use r2r::geometry_msgs::msg::{Quaternion, Transform as RosTransform, TransformStamped, Vector3};
+ use r2r::sensor_msgs::msg::{CameraInfo, RegionOfInterest};
+ use r2r::std_msgs::msg::Header;
++use r2r::tf2_msgs::msg::TFMessage;
+ use std::cell::RefCell;
+ use std::sync::{Arc, Mutex};
+ 
+ struct RosSnapshotSync {
+     stamp: RefCell<r2r::builtin_interfaces::msg::Time>,
++    frame_tf: TFMessage,
+ }
+ 
+ impl SnapshotSync for RosSnapshotSync {
+@@ -32,6 +38,7 @@
+     ) -> Box<dyn SnapshotAsync> {
+         Box::new(RosSnapshot {
+             stamp: self.stamp,
++            frame_tf: self.frame_tf,
+             ctx: world.resource::<RosCaptureContextShared>().0.clone(),
+         })
+     }
+@@ -39,6 +46,7 @@
+ 
+ struct RosSnapshot {
+     stamp: RefCell<r2r::builtin_interfaces::msg::Time>,
++    frame_tf: TFMessage,
+     ctx: Arc<RosCaptureContext>,
+ }
+ 
+@@ -52,6 +60,9 @@
+             stamp: self.stamp.take(),
+             frame_id: "camera_optical_frame".to_string(),
+         };
++        // Pose and image were extracted from the same rendered frame; GPU readback
++        // may finish later. Never stamp these with the readback completion time.
++        self.ctx.frame_tf.publish(self.frame_tf.clone());
+         self.ctx.camera_info.publish(ros_camera_info(
+             optical_frame_hdr.clone(),
+             frame.width,
+@@ -85,11 +96,11 @@
+         world: &World,
+         _frame_id: Option<CaptureFrameId>,
+     ) -> Option<Box<dyn SnapshotSync>> {
+-        let clock = world.resource::<RosCaptureContext>();
++        let pose = world.resource::<ExtractedSpFrame>();
++        let frame_tf = pose.tf.clone()?;
+         Some(Box::new(RosSnapshotSync {
+-            stamp: RefCell::new(Clock::to_builtin_time(
+-                &clock.clock.lock().unwrap().get_now().unwrap(),
+-            )),
++            stamp: RefCell::new(pose.stamp.clone()),
++            frame_tf,
+         }))
+     }
+ }
+@@ -105,6 +116,7 @@
+     pub camera_info: TopicPublisher<CameraInfoTopic>,
+     pub image_raw: TopicPublisher<ImageRawTopic>,
+     pub image_compressed: TopicPublisher<ImageCompressedTopic>,
++    pub frame_tf: TopicPublisher<SpFrameTfTopic>,
+ }
+ 
+ pub struct RosCapturePlugin {
+@@ -135,8 +147,90 @@
+             );
+         app.sub_app_mut(RenderApp)
+             .insert_resource(RosCaptureContextShared(Arc::new(self.context.clone())))
+-            .insert_resource(self.context.clone());
+-    }
++            .insert_resource(self.context.clone())
++            .init_resource::<ExtractedSpFrame>()
++            .add_systems(ExtractSchedule, extract_sp_frame);
++    }
++}
++
++#[derive(Resource, Default)]
++struct ExtractedSpFrame {
++    stamp: r2r::builtin_interfaces::msg::Time,
++    tf: Option<TFMessage>,
++}
++
++fn ros_tf(
++    stamp: &r2r::builtin_interfaces::msg::Time,
++    parent: &str,
++    child: &str,
++    translation: Vec3,
++    rotation: Quat,
++) -> TransformStamped {
++    TransformStamped {
++        header: Header {
++            stamp: stamp.clone(),
++            frame_id: parent.into(),
++        },
++        child_frame_id: child.into(),
++        transform: RosTransform {
++            translation: Vector3 {
++                x: translation.x as f64,
++                y: translation.y as f64,
++                z: translation.z as f64,
++            },
++            rotation: Quaternion {
++                x: rotation.x as f64,
++                y: rotation.y as f64,
++                z: rotation.z as f64,
++                w: rotation.w as f64,
++            },
++        },
++    }
++}
++
++fn extract_sp_frame(
++    mut frame: ResMut<ExtractedSpFrame>,
++    context: Extract<Res<RosCaptureContext>>,
++    camera: Extract<Query<&GlobalTransform, With<CaptureSource>>>,
++    gimbal: Extract<Query<&GlobalTransform, (With<Controlled>, With<InfantryGimbal>)>>,
++    muzzle: Extract<Query<&Transform, (With<Controlled>, With<InfantryLaunchOffset>)>>,
++    robot: Extract<Query<&Transform, (With<Controlled>, With<Infantry>)>>,
++) {
++    frame.tf = None;
++    let (Ok(camera), Ok(gimbal), Ok(muzzle), Ok(robot)) = (
++        camera.single(),
++        gimbal.single(),
++        muzzle.single(),
++        robot.single(),
++    ) else {
++        return;
++    };
++    let stamp = Clock::to_builtin_time(&context.clock.lock().unwrap().get_now().unwrap());
++    let align = Quat::from_mat3(&M_ALIGN_MAT3);
++    // Same origin and forward axis as projectile_launch. Camera follows this basis.
++    let gun_basis =
++        (gimbal.rotation() * muzzle.rotation * Quat::from_rotation_x(std::f32::consts::FRAC_PI_2))
++            .normalize();
++    let origin = robot.translation + gimbal.rotation() * muzzle.translation;
++    let gun_ros = (align * gun_basis * align.inverse()).normalize();
++    let camera_optical_ros =
++        (align * camera.rotation() * Quat::from_rotation_x(std::f32::consts::PI)).normalize();
++    let camera_rel_rotation = (gun_ros.inverse() * camera_optical_ros).normalize();
++    let camera_rel_position =
++        M_ALIGN_MAT3 * (gun_basis.inverse() * (camera.translation() - origin));
++    frame.tf = Some(TFMessage {
++        transforms: vec![
++            ros_tf(&stamp, "map", "sp_gimbal", M_ALIGN_MAT3 * origin, gun_ros),
++            ros_tf(
++                &stamp,
++                "sp_gimbal",
++                "sp_camera_optical",
++                camera_rel_position,
++                camera_rel_rotation,
++            ),
++        ],
++    });
++    frame.stamp = stamp;
+ }
+ 
+ fn raw_image(hdr: Header, width: u32, height: u32, data: &[u8]) -> r2r::sensor_msgs::msg::Image {
+--- a/bevy_robomaster_simulator/src/systems/gimbal_pid.rs
++++ b/bevy_robomaster_simulator/src/systems/gimbal_pid.rs
+@@ -22,6 +22,15 @@
+     fn rotation(self) -> Quat {
+         Quat::from_euler(EulerRot::YXZ, self.yaw, self.pitch, 0.0)
+     }
++}
++
++/// Check the physical +Y firing axis, using the pose the projectile launcher uses.
++/// Image-associated feedback is delayed and cannot replace this final actuator check.
++pub fn sp_fire_aligned(target: GimbalAimTarget, muzzle_world: Quat, tolerance: f32) -> bool {
++    let expected = target.rotation() * Vec3::Y;
++    let actual = muzzle_world * Vec3::Y;
++    expected.is_finite() && actual.is_finite()
++        && actual.normalize_or_zero().dot(expected.normalize_or_zero()) >= tolerance.cos()
+ }
+ 
+ /// One independent single-axis PID loop.
+@@ -52,6 +61,48 @@
+     target: GimbalAimTarget,
+     yaw: AxisPid,
+     pitch: AxisPid,
++    motion: Option<SpMotionPlan>,
++}
++
++/// SP trajectory derivatives in the simulator's absolute muzzle convention.
++#[derive(Clone, Copy, Debug)]
++pub struct SpMotionPlan {
++    velocity: Vec2,
++    acceleration: Vec2,
++    max_acceleration: Vec2,
++    valid_for: f32,
++    elapsed: f32,
++    previous_rate: Vec2,
++}
++
++impl SpMotionPlan {
++    pub fn new(
++        yaw_vel: f32,
++        pitch_vel: f32,
++        yaw_acc: f32,
++        pitch_acc: f32,
++        max_yaw_acc: f32,
++        max_pitch_acc: f32,
++        valid_for: f32,
++    ) -> Self {
++        Self {
++            velocity: Vec2::new(yaw_vel, pitch_vel),
++            acceleration: Vec2::new(yaw_acc, pitch_acc),
++            max_acceleration: Vec2::new(max_yaw_acc, max_pitch_acc),
++            valid_for,
++            elapsed: 0.0,
++            previous_rate: Vec2::ZERO,
++        }
++    }
++
++    fn sample(&self, initial: GimbalAimTarget) -> GimbalAimTarget {
++        let offset =
++            self.velocity * self.elapsed + self.acceleration * (0.5 * self.elapsed * self.elapsed);
++        GimbalAimTarget {
++            yaw: initial.yaw + offset.x,
++            pitch: initial.pitch + offset.y,
++        }
++    }
+ }
+ 
+ impl GimbalAimTracker {
+@@ -60,6 +111,7 @@
+             target,
+             yaw: AxisPid::default(),
+             pitch: AxisPid::default(),
++            motion: None,
+         }
+     }
+ 
+@@ -71,6 +123,15 @@
+     /// drives one continuous controller instead of restarting every message.
+     pub fn retarget(&mut self, target: GimbalAimTarget) {
+         self.target = target;
++        self.motion = None;
++    }
++
++    pub fn retarget_sp(&mut self, target: GimbalAimTarget, mut motion: SpMotionPlan) {
++        if let Some(previous) = self.motion {
++            motion.previous_rate = previous.previous_rate;
++        }
++        self.target = target;
++        self.motion = Some(motion);
+     }
+ }
+ 
+@@ -107,11 +168,13 @@
+ /// Replaces the direct pose snap that auto-aim used to apply: the solver target is
+ /// tracked by a rate-limited PID loop so the gimbal moves like an actuated axis.
+ pub fn gimbal_pid_controls(
++    mut commands: Commands,
+     time: Res<Time>,
+     config: Res<SimulationConfig>,
+     gimbal: Option<
+         Single<
+             (
++                Entity,
+                 &mut Transform,
+                 &GlobalTransform,
+                 &mut InfantryGimbal,
+@@ -134,31 +197,78 @@
+         return;
+     }
+ 
+-    let (mut gimbal_transform, gimbal_global, mut gimbal_data, mut tracker) = gimbal.into_inner();
+-
+-    // Error is measured on the muzzle, so chassis motion shows up as tracking error
+-    // instead of being cancelled out by a one-shot correction.
+-    let error = tracking_error(
+-        tracker.target().rotation(),
+-        gimbal_transform.rotation,
+-        gimbal_global.rotation(),
+-        muzzle.rotation(),
+-    );
+-    let (yaw_error, pitch_error) = (error.x, error.y);
+-    let pid = &config.vehicle.gimbal_pid;
+-    let yaw_rate = tracker.yaw.step(yaw_error, &pid.yaw, dt);
+-    let pitch_rate = tracker.pitch.step(pitch_error, &pid.pitch, dt);
+-
+-    (gimbal_data.local_yaw, gimbal_data.pitch, _) =
+-        gimbal_transform.rotation.to_euler(EulerRot::YXZ);
+-    gimbal_data.local_yaw += yaw_rate * dt;
+-    gimbal_data.pitch = (gimbal_data.pitch + pitch_rate * dt).clamp(
+-        -config.vehicle.gimbal_pitch_limit,
+-        config.vehicle.gimbal_pitch_limit,
+-    );
+-
+-    gimbal_transform.rotation =
+-        Quat::from_euler(EulerRot::YXZ, gimbal_data.local_yaw, gimbal_data.pitch, 0.0);
++    let (entity, mut gimbal_transform, gimbal_global, mut gimbal_data, mut tracker) =
++        gimbal.into_inner();
++    // Integrate the actuator at <=10 ms even when rendering/ROS readback stalls.
++    // Large render deltas must not turn the discrete PID into a pose jump.
++    let chassis_rotation = gimbal_global.rotation() * gimbal_transform.rotation.inverse();
++    let mount_rotation = gimbal_global.rotation().inverse() * muzzle.rotation();
++    let steps = if tracker.motion.is_some() { (dt / 0.01).ceil().max(1.0) as usize } else { 1 };
++    let dt = dt / steps as f32;
++    for _ in 0..steps {
++        let world_rotation = chassis_rotation * gimbal_transform.rotation;
++        let muzzle_rotation = world_rotation * mount_rotation;
++        if tracker.motion.is_some_and(|m| m.elapsed >= m.valid_for) {
++            commands.entity(entity).remove::<GimbalAimTracker>();
++            break;
++        }
++        let sampled_target = tracker
++            .motion
++            .map_or(tracker.target(), |m| m.sample(tracker.target()));
++
++        // Error is measured on the muzzle, so chassis motion shows up as tracking error
++        // instead of being cancelled out by a one-shot correction.
++        let error = tracking_error(
++            sampled_target.rotation(),
++            gimbal_transform.rotation,
++            world_rotation,
++            muzzle_rotation,
++        );
++        let (yaw_error, pitch_error) = (error.x, error.y);
++        let pid = &config.vehicle.gimbal_pid;
++        let mut yaw_rate = tracker.yaw.step(yaw_error, &pid.yaw, dt);
++        let mut pitch_rate = tracker.pitch.step(pitch_error, &pid.pitch, dt);
++        if let Some(mut motion) = tracker.motion {
++            // Express world trajectory derivatives in local gimbal axes through the
++            // same mount/chassis conversion as the position feedback loop.
++            let velocity = motion.velocity + motion.acceleration * motion.elapsed;
++            let epsilon = 0.001;
++            let next = GimbalAimTarget {
++                yaw: sampled_target.yaw + velocity.x * epsilon,
++                pitch: sampled_target.pitch + velocity.y * epsilon,
++            };
++            let next_error = tracking_error(
++                next.rotation(),
++                gimbal_transform.rotation,
++                world_rotation,
++                muzzle_rotation,
++            );
++            let feedforward = Vec2::new(
++                wrap_angle(next_error.x - error.x),
++                wrap_angle(next_error.y - error.y),
++            ) / epsilon;
++            let requested = Vec2::new(yaw_rate + feedforward.x, pitch_rate + feedforward.y);
++            let delta = (requested - motion.previous_rate)
++                .clamp(-motion.max_acceleration * dt, motion.max_acceleration * dt);
++            let rate = motion.previous_rate + delta;
++            yaw_rate = rate.x.clamp(-pid.yaw.max_rate, pid.yaw.max_rate);
++            pitch_rate = rate.y.clamp(-pid.pitch.max_rate, pid.pitch.max_rate);
++            motion.previous_rate = Vec2::new(yaw_rate, pitch_rate);
++            motion.elapsed += dt;
++            tracker.motion = Some(motion);
++        }
++
++        (gimbal_data.local_yaw, gimbal_data.pitch, _) =
++            gimbal_transform.rotation.to_euler(EulerRot::YXZ);
++        gimbal_data.local_yaw += yaw_rate * dt;
++        gimbal_data.pitch = (gimbal_data.pitch + pitch_rate * dt).clamp(
++            -config.vehicle.gimbal_pitch_limit,
++            config.vehicle.gimbal_pitch_limit,
++        );
++
++        gimbal_transform.rotation =
++            Quat::from_euler(EulerRot::YXZ, gimbal_data.local_yaw, gimbal_data.pitch, 0.0);
++    }
+ }
+ 
+ #[cfg(test)]
+@@ -302,4 +412,145 @@
+         assert!((wrap_angle(std::f32::consts::TAU + 0.2) - 0.2).abs() < 1e-5);
+         assert!((wrap_angle(std::f32::consts::PI + 0.1) + std::f32::consts::PI - 0.1).abs() < 1e-5);
+     }
+-}
++
++    #[test]
++    fn sp_zero_pitch_points_the_projectile_horizontally() {
++        let target = GimbalAimTarget {
++            yaw: 0.0,
++            pitch: -std::f32::consts::FRAC_PI_2,
++        };
++        assert!((target.rotation() * Vec3::Y - Vec3::NEG_Z).length() < 1e-6);
++        let up = GimbalAimTarget {
++            yaw: 0.0,
++            pitch: -std::f32::consts::FRAC_PI_2 + 0.2,
++        };
++        assert!((up.rotation() * Vec3::Y).y > 0.0);
++        let align = Mat3::from_cols(Vec3::new(0.0, -1.0, 0.0), Vec3::Z, Vec3::NEG_X);
++        for yaw in [-2.8_f32, 0.0, 0.6] {
++            for pitch in [-0.2_f32, 0.0, 0.2] {
++                let target = GimbalAimTarget {
++                    yaw,
++                    pitch: -pitch - std::f32::consts::FRAC_PI_2,
++                };
++                let actual = align * (target.rotation() * Vec3::Y);
++                let expected = Vec3::new(
++                    yaw.cos() * pitch.cos(),
++                    yaw.sin() * pitch.cos(),
++                    -pitch.sin(),
++                );
++                assert!((actual - expected).length() < 1e-6);
++            }
++        }
++    }
++
++    #[test]
++    fn fire_gate_uses_physical_axis_and_rejects_actuator_lag() {
++        let target = GimbalAimTarget { yaw: 0.3, pitch: -std::f32::consts::FRAC_PI_2 + 0.1 };
++        assert!(sp_fire_aligned(target, target.rotation(), 0.01));
++        let lagged = GimbalAimTarget { yaw: target.yaw - 0.03, pitch: target.pitch };
++        assert!(!sp_fire_aligned(target, lagged.rotation(), 0.01));
++        // Roll about the physical projectile axis does not change where it goes.
++        assert!(sp_fire_aligned(target, target.rotation() * Quat::from_rotation_y(1.0), 0.01));
++        assert!(!sp_fire_aligned(target, Quat::from_xyzw(f32::NAN, 0.0, 0.0, 1.0), 0.01));
++    }
++
++    #[test]
++    fn sp_motion_uses_both_derivatives_and_preserves_rate_on_retarget() {
++        let mut motion = SpMotionPlan::new(1.0, -2.0, 2.0, 4.0, 50.0, 100.0, 0.25);
++        motion.elapsed = 0.1;
++        let sample = motion.sample(GimbalAimTarget {
++            yaw: 0.0,
++            pitch: 0.0,
++        });
++        assert!((sample.yaw - 0.11).abs() < 1e-6);
++        assert!((sample.pitch + 0.18).abs() < 1e-6);
++        motion.previous_rate = Vec2::new(2.0, 3.0);
++        let mut tracker = GimbalAimTracker::new(sample);
++        tracker.retarget_sp(sample, motion);
++        tracker.retarget_sp(
++            sample,
++            SpMotionPlan::new(0.0, 0.0, 0.0, 0.0, 50.0, 100.0, 0.25),
++        );
++        assert_eq!(tracker.motion.unwrap().previous_rate, Vec2::new(2.0, 3.0));
++        tracker.retarget(sample);
++        assert!(tracker.motion.is_none());
++    }
++
++    #[test]
++    fn sp_actuator_converges_with_acceleration_limits_and_stops_on_timeout() {
++        use bevy::ecs::system::RunSystemOnce;
++        let mut world = World::new();
++        world.insert_resource(Time::<()>::default());
++        world.insert_resource(SimulationConfig::default());
++        let goal = GimbalAimTarget {
++            yaw: 0.3,
++            pitch: -std::f32::consts::FRAC_PI_2 + 0.1,
++        };
++        let gimbal = world
++            .spawn((
++                Controlled,
++                Transform::default(),
++                GlobalTransform::default(),
++                InfantryGimbal::default(),
++                GimbalAimTracker::new(goal),
++            ))
++            .id();
++        let muzzle = world
++            .spawn((Controlled, InfantryLaunchOffset, GlobalTransform::default()))
++            .id();
++        let mount = Quat::from_rotation_x(-65_f32.to_radians());
++        let dt = 0.01_f32;
++        let mut previous_angle = Vec2::ZERO;
++        let mut previous_rate = Vec2::ZERO;
++        for step in 0..600 {
++            if step % 10 == 0 {
++                world
++                    .get_mut::<GimbalAimTracker>(gimbal)
++                    .unwrap()
++                    .retarget_sp(
++                        goal,
++                        SpMotionPlan::new(0.0, 0.0, 0.0, 0.0, 50.0, 100.0, 0.25),
++                    );
++            }
++            let rotation = world.get::<Transform>(gimbal).unwrap().rotation;
++            world
++                .entity_mut(gimbal)
++                .insert(GlobalTransform::from(Transform::from_rotation(rotation)));
++            world
++                .entity_mut(muzzle)
++                .insert(GlobalTransform::from(Transform::from_rotation(
++                    rotation * mount,
++                )));
++            world
++                .resource_mut::<Time>()
++                .advance_by(std::time::Duration::from_secs_f32(dt));
++            world.run_system_once(gimbal_pid_controls).unwrap();
++            let (yaw, pitch, _) = world
++                .get::<Transform>(gimbal)
++                .unwrap()
++                .rotation
++                .to_euler(EulerRot::YXZ);
++            let angle = Vec2::new(yaw, pitch);
++            let rate = (angle - previous_angle) / dt;
++            let acceleration = (rate - previous_rate) / dt;
++            assert!(acceleration.x.abs() < 50.1 && acceleration.y.abs() < 100.1);
++            previous_angle = angle;
++            previous_rate = rate;
++        }
++        let actual = world.get::<Transform>(gimbal).unwrap().rotation * mount * Vec3::Y;
++        assert!((actual - goal.rotation() * Vec3::Y).length() < 0.01);
++        for _ in 0..40 {
++            world
++                .resource_mut::<Time>()
++                .advance_by(std::time::Duration::from_secs_f32(dt));
++            world.run_system_once(gimbal_pid_controls).unwrap();
++        }
++        assert!(world.get::<GimbalAimTracker>(gimbal).is_none());
++        let stopped = *world.get::<Transform>(gimbal).unwrap();
++        world.run_system_once(gimbal_pid_controls).unwrap();
++        assert_eq!(
++            world.get::<Transform>(gimbal).unwrap().rotation,
++            stopped.rotation
++        );
++    }
++}
+--- a/bevy_robomaster_simulator/src/systems/controller.rs
++++ b/bevy_robomaster_simulator/src/systems/controller.rs
+@@ -3,7 +3,8 @@
+ use core::time::Duration;
+ use std::sync::atomic::Ordering;
+ 
+-use crate::components::SubscribeAutoAim;
++use crate::components::{ActiveSlapper, Infantry, SubscribeAutoAim};
++use avian3d::prelude::LinearVelocity;
+ 
+ const GAMEPAD_STICK_DEADZONE: f32 = 0.12;
+ const GAMEPAD_TRIGGER_THRESHOLD: f32 = 0.35;
+@@ -141,6 +142,33 @@
+     help: ControllerHelp,
+ }
+ 
++/// Optional repeatable SP integration scenarios; normal interactive input is unchanged.
++pub fn sample_sp_scenario(
++    time: Res<Time>,
++    mut state: ResMut<ControllerState>,
++    target: Query<(&GlobalTransform, &LinearVelocity), (With<Infantry>, With<ActiveSlapper>)>,
++) {
++    match std::env::var("DAEDALUS_SP_SCENARIO").as_deref() {
++        Ok("spin") => state.remote.chassis_yaw = 1.0,
++        Ok("move") => {
++            // Keep the original physical drive model. Stick magnitude is normalized
++            // there, so use position/velocity feedback to bound this test trajectory.
++            // Ground truth drives only the test enemy, never the vision/aim pipeline.
++            let Ok((pose, velocity)) = target.single() else { return; };
++            let t = (time.elapsed_secs() - 4.0).max(0.0);
++            let desired_x = 0.8 * (t * 0.8).sin();
++            let desired_v = if t > 0.0 { 0.64 * (t * 0.8).cos() } else { 0.0 };
++            let correction = 3.0 * (desired_x - pose.translation().x)
++                + 2.0 * (desired_v - velocity.x);
++            state.remote.movement.x = if correction.abs() > 0.2 { correction.signum() } else { 0.0 };
++            if time.elapsed_secs() % 1.0 < time.delta_secs() {
++                info!("SP move scenario: x={:.3} m vx={:.3} m/s desired_x={:.3} m",
++                    pose.translation().x, velocity.x, desired_x);
++            }
++        },
++        _ => {}
++    }
++}
+ 
+ impl ControllerState {
+     pub fn reset_frame(&mut self) {
+--- a/bevy_robomaster_simulator/src/scene.rs
++++ b/bevy_robomaster_simulator/src/scene.rs
+@@ -78,6 +78,7 @@
+ }
+ 
+ async fn load_scene(w: AsyncWorld) {
++    let sp_scenario = std::env::var("DAEDALUS_SP_SCENARIO").is_ok();
+     let assets = w
+         .with_world(|world| world.resource::<AssetServer>().clone())
+         .await;
+@@ -191,12 +192,22 @@
+         .spawn(
+             scene("vehicle.glb"),
+             (
+-                Transform::from_xyz(1.0, 1.0, 1.0),
++                if sp_scenario {
++                    Transform::from_xyz(0.0, 1.0, -4.0)
++                } else {
++                    Transform::from_xyz(1.0, 1.0, 1.0)
++                },
+                 Infantry::new(Team::Blue, INFANTRY_THREE_CONFIG),
+                 SlapperInfantry,
+             ),
+         )
+         .await;
++    if sp_scenario {
++        w.with_world(move |world| {
++            world.entity_mut(slapper).insert(ActiveSlapper);
++        })
++        .await;
++    }
+     w.run(setup_vehicle, slapper).await;
+ 
+     let hero = w
+@@ -206,10 +217,15 @@
+                 Transform::from_xyz(2.0, 1.0, 1.0),
+                 Infantry::new(Team::Blue, HERO_ROBOT_CONFIG),
+                 SlapperInfantry,
+-                ActiveSlapper,
+-            ),
+-        )
+-        .await;
++            ),
++        )
++        .await;
++    if !sp_scenario {
++        w.with_world(move |world| {
++            world.entity_mut(hero).insert(ActiveSlapper);
++        })
++        .await;
++    }
+     w.run(setup_vehicle, hero).await;
+ 
+     info!("scene loaded");
+--- a/bevy_robomaster_simulator/src/ros2/plugin.rs
++++ b/bevy_robomaster_simulator/src/ros2/plugin.rs
+@@ -340,6 +340,86 @@
+     }
+ }
+ 
++fn process_sp_plan(
++    mut commands: Commands,
++    plan_sub: Res<TopicSubscriber<SpGimbalPlanTopic>>,
++    mut metrics: ResMut<SimulationMetrics>,
++    mut fire_rate_limiter: ResMut<FireRateLimiter>,
++    clock: Res<RoboMasterClock>,
++    gimbal: Single<
++        (Entity, Option<&mut GimbalAimTracker>, &GlobalTransform),
++        (With<Controlled>, With<InfantryGimbal>),
++    >,
++    muzzle: Single<&Transform, (With<Controlled>, With<InfantryLaunchOffset>)>,
++) {
++    let Ok(Some(plan)) = plan_sub.try_recv() else {
++        return;
++    };
++    let (entity, mut tracker, gimbal_world) = gimbal.into_inner();
++    let now = Clock::to_builtin_time(&clock.lock().unwrap().get_now().unwrap());
++    let age = (now.sec as f64 - plan.header.stamp.sec as f64)
++        + (now.nanosec as f64 - plan.header.stamp.nanosec as f64) * 1e-9;
++    let values = [
++        plan.yaw,
++        plan.pitch,
++        plan.yaw_vel,
++        plan.pitch_vel,
++        plan.yaw_acc,
++        plan.pitch_acc,
++        plan.max_yaw_acc,
++        plan.max_pitch_acc,
++        plan.valid_for,
++    ];
++    if !plan.control
++        || plan.header.frame_id != "map"
++        || age < -0.02
++        || age >= plan.valid_for
++        || values.iter().any(|v| !v.is_finite())
++        || plan.max_yaw_acc <= 0.0
++        || plan.max_pitch_acc <= 0.0
++        || !(0.01..=1.0).contains(&plan.valid_for)
++    {
++        commands.entity(entity).remove::<GimbalAimTracker>();
++        return;
++    }
++    metrics.record_gimbal_command(
++        "sp_ros2",
++        plan.yaw.to_degrees() as f32,
++        (90.0 - plan.pitch.to_degrees()) as f32,
++        0.0,
++        plan.fire,
++    );
++    // Projectile points along muzzle-local +Y, while SP's zero-pitch forward is -Z in Bevy.
++    let target = GimbalAimTarget {
++        yaw: plan.yaw as f32,
++        pitch: -plan.pitch as f32 - PI / 2.0,
++    };
++    let motion = crate::systems::SpMotionPlan::new(
++        plan.yaw_vel as f32,
++        -plan.pitch_vel as f32,
++        plan.yaw_acc as f32,
++        -plan.pitch_acc as f32,
++        plan.max_yaw_acc as f32,
++        plan.max_pitch_acc as f32,
++        (plan.valid_for - age.max(0.0)) as f32,
++    );
++    match tracker.as_mut() {
++        Some(tracker) => tracker.retarget_sp(target, motion),
++        None => {
++            let mut tracker = GimbalAimTracker::new(target);
++            tracker.retarget_sp(target, motion);
++            commands.entity(entity).insert(tracker);
++        }
++    }
++    if plan.fire
++        && crate::systems::sp_fire_aligned(target, gimbal_world.rotation() * muzzle.rotation, 0.01)
++        && fire_rate_limiter.allow() {
++        commands.queue(|world: &mut World| {
++            world.run_system_once(projectile_launch).unwrap();
++        });
++    }
++}
++
+ fn publish_tech_core_state(
+     time: Res<Time>,
+     clock: Res<RoboMasterClock>,
+@@ -408,6 +488,7 @@
+             .world_mut()
+             .remove_resource::<TopicPublisher<ImageCompressedTopic>>()
+             .unwrap();
++        let frame_tf = app.world_mut().remove_resource::<TopicPublisher<SpFrameTfTopic>>().unwrap();
+         let livox_pointcloud = app
+             .world_mut()
+             .remove_resource::<TopicPublisher<LivoxPointCloudTopic>>()
+@@ -444,6 +525,7 @@
+                     camera_info,
+                     image_raw,
+                     image_compressed,
++                    frame_tf,
+                 },
+             })
+             .add_systems(Last, cleanup_ros2_system)
+@@ -452,6 +534,8 @@
+                 process_subscription
+                     .run_if(|enabled: Res<SubscribeAutoAim>| enabled.load(Ordering::Acquire)),
+             )
++            .add_systems(Update, process_sp_plan.after(process_subscription)
++                .run_if(|enabled: Res<SubscribeAutoAim>| enabled.load(Ordering::Acquire)))
+             .add_systems(Update, capture_rune.after(TransformSystems::Propagate))
+             .add_systems(Update, publish_tech_core_state)
+             .insert_resource(SpinThreadHandle(Some(thread::spawn(move || {
+--- a/bevy_robomaster_simulator/src/setup.rs
++++ b/bevy_robomaster_simulator/src/setup.rs
+@@ -132,6 +132,7 @@
+         Option<&ActiveSlapper>,
+     )>,
+     sim_config: Res<SimulationConfig>,
++    transforms: Query<&Transform>,
+ ) {
+     let (root, infantry, is_local, is_active) = root_query
+         .get(root)
+@@ -191,6 +192,16 @@
+         commands
+             .entity(q.clone().exact("SHOT_DIRECTION").one().unwrap())
+             .insert(InfantryLaunchOffset);
++        if std::env::var("DAEDALUS_SP_SCENARIO").is_ok() {
++            let shot = q.clone().exact("SHOT_DIRECTION").one().unwrap();
++            let mount = transforms.get(shot).unwrap().rotation
++                * Quat::from_rotation_x(std::f32::consts::FRAC_PI_2);
++            let mut initial = *transforms.get(gimbal).unwrap();
++            // Test camera sees the settled armor below the player's raised platform.
++            // A fixed 9 degree depression also keeps it clear of the model's own barrel.
++            initial.rotation = Quat::from_rotation_x(-9.0_f32.to_radians()) * mount.inverse();
++            commands.entity(gimbal).insert(initial);
++        }
+         commands
+             .entity(q.exact("CAM_DIRECTION").one().unwrap())
+             .insert(InfantryViewOffset);
+--- a/bevy_robomaster_simulator/src/main.rs
++++ b/bevy_robomaster_simulator/src/main.rs
+@@ -250,6 +250,7 @@
+                     clear_controller_input,
+                     sample_keyboard_controller,
+                     sample_gamepad_controller,
++                    systems::sample_sp_scenario,
+                     update_auto_aim_subscription,
+                     following_controls,
+                     switch_slapper_control,
+--- /dev/null
++++ b/bevy_robomaster_simulator/rm_interfaces/msg/SpGimbalPlan.msg
+@@ -0,0 +1,15 @@
++# SP Planner trajectory, radians; yaw positive left, pitch negative up.
++# Absolute orientation in ROS map axes, around the muzzle origin.
++std_msgs/Header header
++bool control
++bool fire
++float64 yaw
++float64 yaw_vel
++float64 yaw_acc
++float64 pitch
++float64 pitch_vel
++float64 pitch_acc
++float64 max_yaw_acc
++float64 max_pitch_acc
++# Watchdog measured since receipt in simulator time, not a ROS wall-clock deadline.
++float64 valid_for

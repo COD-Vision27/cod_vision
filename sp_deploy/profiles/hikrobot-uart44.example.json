@@ -1,0 +1,18 @@
+{
+  "schema": "sp_deploy_profile_v1",
+  "base": "standard3",
+  "camera_name": "hikrobot",
+  "device": "CPU",
+  "vid_pid": "2bdf:0001",
+  "exposure_ms": 2.5,
+  "gain": 16.9,
+  "serial_port": "/dev/serial/by-id/REPLACE_WITH_ACTUAL_CONTROLLER",
+  "baudrate": 921600,
+  "bullet_speed_mps": 22,
+  "muzzle_offset_gimbal_m": null,
+  "enemy_color": "blue",
+  "yaw_offset_deg": 0,
+  "pitch_offset_deg": 0,
+  "R_gimbal2imubody": [1,0,0,0,1,0,0,0,1],
+  "board": {"type":"circles", "cols":10, "rows":7, "spacing_m":0.04}
+}
