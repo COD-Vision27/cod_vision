@@ -1,6 +1,8 @@
 # RoboMaster 自瞄与仿真工作区
 
 - [全部文档目录](docs/文档目录.md)
+- [版本管理与源码来源](docs/version-control.md)
+- [装甲标注与训练流水线（building，服务器执行）](sp_training/README.md)
 - [可视化远程仿真：本地 / 目标机显示窗口](docs/可视化远程仿真测试.md)
 - [仿真 configs 与调参](sp_vision_ros/configs/README.md)
 - [SP 新版自瞄 ROS2 仿真接入](sp_vision_ros/README.md)

@@ -1,0 +1,16 @@
+{
+  "asset_id": "placeholder-NOT-2027-hardware",
+  "status": "placeholder",
+  "description": "Legacy-sized procedural stand-in. Replace only after drawings and display patterns arrive.",
+  "width_m": 0.14,
+  "height_m": 0.125,
+  "keypoints_m": [[-0.0675,0.028,0],[-0.0675,-0.028,0],[0.0675,-0.028,0],[0.0675,0.028,0]],
+  "keypoint_semantics": "legacy lightbar endpoints, TL BL BR TR, x right y up z toward camera",
+  "texture": null,
+  "mesh": null,
+  "mesh_scale": 1.0,
+  "mesh_rotation_deg": [0,0,0],
+  "display_material": null,
+  "allowed_colors": [0,1,2,3],
+  "allowed_numbers": [0,1,2,3,4,5,6,7,8]
+}

@@ -1,0 +1,52 @@
+{
+  "schema": "sp-armor-pipeline-v1",
+  "phase": "building",
+  "execution": {
+    "location": "server",
+    "required_role": "server",
+    "allow_local_fallback": false,
+    "render_device": "OPTIX",
+    "train_device": "cuda:0"
+  },
+  "stack": {
+    "simulator": "Blender",
+    "blender_version": "4.2.1",
+    "batch_renderer": "BlenderProc",
+    "blenderproc_version": "2.8.0",
+    "annotation_plugin": "SP Armor Labels",
+    "annotation_plugin_status": "building"
+  },
+  "assets": {
+    "scene_blend": null,
+    "registry": "registry/armor2027.pending.json"
+  },
+  "sampling": {
+    "seed": 2027,
+    "scenes": 1000,
+    "views_per_scene": 8,
+    "chunk_size": 16,
+    "resolution": [1280, 1024],
+    "samples": 32,
+    "camera": {
+      "target": [0, 0, 0],
+      "radius_m": [1.0, 8.0],
+      "elevation_deg": [-15, 25],
+      "azimuth_deg": [-65, 65],
+      "lens_mm": [25, 50]
+    },
+    "lighting": {"energy": [80, 600], "exposure": [-1.5, 1.0]},
+    "visibility_policy": "reject_ambiguous_frame"
+  },
+  "artifacts": {
+    "raw": "data/armor2027/raw",
+    "dataset": "data/armor2027/dataset",
+    "training_run": "runs/armor2027",
+    "export": "exports/armor2027"
+  },
+  "training": {
+    "config": "configs/train.json",
+    "base_model": "assets/base_model/yolov5.xml",
+    "initialization": "project_ir_weights",
+    "resume": null
+  }
+}

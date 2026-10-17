@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=65"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sp-armor-training"
+version = "0.1.0"
+description = "Synthetic data and training for the existing SP 22-channel armor YOLO"
+requires-python = ">=3.10"
+dependencies = ["numpy>=1.24,<3", "opencv-python-headless>=4.8"]
+
+[project.scripts]
+sp-armor = "armor_training.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["armor_training*"]
+
+[tool.setuptools.data-files]
+"share/sp-armor-training/configs" = ["configs/placeholder.json", "configs/train.json", "configs/smoke.json", "configs/pipeline.json"]
+"share/sp-armor-training/assets/base_model" = ["assets/base_model/yolov5.xml", "assets/base_model/yolov5.bin", "assets/base_model/PROVENANCE.md"]
+
+"share/sp-armor-training/registry" = ["registry/armor2027.pending.json"]
+"share/sp-armor-training/blender_addon/sp_armor_labels" = ["blender_addon/sp_armor_labels/__init__.py", "blender_addon/sp_armor_labels/ground_truth.py"]

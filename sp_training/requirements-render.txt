@@ -1,0 +1,2 @@
+# Server render environment; BlenderProc launches its Blender Python runtime.
+blenderproc==2.8.0

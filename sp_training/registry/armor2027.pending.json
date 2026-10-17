@@ -1,0 +1,20 @@
+{
+  "schema": "sp-armor-registry-v1",
+  "status": "awaiting_reference",
+  "revision": null,
+  "source": null,
+  "armors": [],
+  "required_binding_fields": {
+    "object": "Blender object owning one armor instance",
+    "asset_id": "Versioned asset identity",
+    "status": "verified only after the future reference is modeled",
+    "color_id": "Project head channel 0..3; not inferred from an old detector",
+    "number_id": "Project head channel 0..8; mapping reviewed when official patterns arrive",
+    "keypoints": {
+      "top_left": "name of a physical landmark object",
+      "bottom_left": "name of a physical landmark object",
+      "bottom_right": "name of a physical landmark object",
+      "top_right": "name of a physical landmark object"
+    }
+  }
+}
