@@ -1,0 +1,5 @@
+# Algorithm overlay only. Merge into the vehicle's calibrated full configuration.
+# Requires the matching Tracker/Planner code; not a standalone startup YAML.
+tracker_max_dt: 0.2       # seconds between consecutive visual observations
+fire_yaw_scale: 3.0      # cap; the projected armor geometry can shrink it
+fire_armor_fraction: 0.5 # central fraction, inscribed elliptical planning-error window

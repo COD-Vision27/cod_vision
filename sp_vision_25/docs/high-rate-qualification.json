@@ -1,0 +1,149 @@
+{
+  "status": "PASS",
+  "comparison_report": "sp_vision_ros/artifacts/final_tuning_comparison.json",
+  "comparison_report_sha256": "30e02effd7d3ff55091ec1c5cc52d6afb0300bbfc3fc72e5d827c94e33c8d896",
+  "thresholds": {
+    "min_shots_per_candidate_case": 100,
+    "min_hit_rate": 0.95,
+    "min_wilson_95_lower": 0.9
+  },
+  "objective": "maximize worst-scene confirmed enemy hits per second, subject to accuracy limits",
+  "complete": true,
+  "accuracy_pass": true,
+  "fixture_unchanged": true,
+  "hardware_profile_preserved": true,
+  "algorithm_overlay": {
+    "fire_armor_fraction": 0.5,
+    "fire_yaw_scale": 3.0,
+    "tracker_max_dt": 0.2
+  },
+  "worst_scene_improves": true,
+  "baseline_worst_hits_s": 0.9416666666666667,
+  "candidate_worst_hits_s": 1.3833333333333333,
+  "comparison": [
+    {
+      "scenario": "move",
+      "baseline_shots_s": 1.525,
+      "candidate_shots_s": 1.9,
+      "baseline_hits_s": 1.4583333333333333,
+      "candidate_hits_s": 1.8666666666666667,
+      "hit_throughput_change": 0.28,
+      "candidate_shots": 228,
+      "candidate_hits": 224,
+      "candidate_hit_rate": 0.9824561403508771,
+      "candidate_wilson_lower": 0.9557674059014353
+    },
+    {
+      "scenario": "spin",
+      "baseline_shots_s": 0.95,
+      "candidate_shots_s": 1.4,
+      "baseline_hits_s": 0.9416666666666667,
+      "candidate_hits_s": 1.3833333333333333,
+      "hit_throughput_change": 0.46902654867256643,
+      "candidate_shots": 168,
+      "candidate_hits": 166,
+      "candidate_hit_rate": 0.9880952380952381,
+      "candidate_wilson_lower": 0.9576388712303794
+    },
+    {
+      "scenario": "static",
+      "baseline_shots_s": 3.5,
+      "candidate_shots_s": 3.0416666666666665,
+      "baseline_hits_s": 3.5,
+      "candidate_hits_s": 3.033333333333333,
+      "hit_throughput_change": -0.13333333333333341,
+      "candidate_shots": 365,
+      "candidate_hits": 364,
+      "candidate_hit_rate": 0.9972602739726028,
+      "candidate_wilson_lower": 0.9846464765137068
+    }
+  ],
+  "tested_yaml_sha256": "d5666ed9305492646244ce8d0e82aceac51ce2cb7833e6e6b332a958caa87cb1",
+  "hardware_yaml_sha256": "7cdecd63bc4a8101aa37fdaed47e9400137546d9eade9fb39cd395d07e2e8321",
+  "changed_original_sp_files": {
+    "sp_vision_25/tasks/auto_aim/armor.hpp": {
+      "before": "bec7b07efd337c7f9888ddccc9b1c21ad94abe31a28a17e487187ff973fbd43e",
+      "after": "75872d0223e3de0e19bd04c76385e588e36fd1ea6f0c2fa7f1257f9d55d0738f"
+    },
+    "sp_vision_25/tasks/auto_aim/planner/planner.cpp": {
+      "before": "912af93ae8670a46f194b6aaae53bdfaf845eca7ccfd752b6fb938a5149e8122",
+      "after": "7cc95c1e3cbbf6f419335e0aaa92bc3c5474c7065a6d5783af3abf38111ecf0e"
+    },
+    "sp_vision_25/tasks/auto_aim/planner/planner.hpp": {
+      "before": "c6971287bccd37f5246a87450e9cf3b133b98f5bfb6e27aa70cd9c64bc26d5ec",
+      "after": "2f3bd4d9cc6d2f02ed9f7ee8be08f4c0280aa8cfbc05e428d049bac4755cf2d8"
+    },
+    "sp_vision_25/tasks/auto_aim/target.cpp": {
+      "before": "bda1ca30d70250bbf51b710f4d5583cf7bc641ef075454c705e1be62f6922eba",
+      "after": "06172a60d5e0430e86487093ae7f4846708e03077dccb96f91521dada74022cb"
+    },
+    "sp_vision_25/tasks/auto_aim/target.hpp": {
+      "before": "e37a30273ea26f0fa2399b0473a8c23dc07f3d4917b8840ee097b86bc6a0812a",
+      "after": "9f5cce44a11d15d516bd16d3a0d7fdff0646554bbb4678804a1ea949841c4a0c"
+    },
+    "sp_vision_25/tasks/auto_aim/tracker.cpp": {
+      "before": "967dfb4c6a0d264d56489e8167350d44cf1d1af99f53a536f790f39f8775d050",
+      "after": "14e44ba9a10cf47e16071509861f87d9632e7ecc3d7653d72e55238ca482d5c4"
+    },
+    "sp_vision_25/tasks/auto_aim/tracker.hpp": {
+      "before": "fe80f8d9b95c637a93f8c0783665ed070558340f8b7c179095af8cbc7ff05b4e",
+      "after": "b30107fa0605409e302db99bac0c643811f16c55d4d27c9ceedea560696e559c"
+    },
+    "sp_vision_25/tasks/auto_aim/yolos/yolov5.cpp": {
+      "before": "cd78d77635999d031a4e07a5110433d08fca787444891708d1a0fd109c309cdc",
+      "after": "6bd0bb42141faebc4102e9d1a71f84c2ed3fc31877333734f08f254d72586ce7"
+    },
+    "sp_vision_25/tasks/auto_aim/yolos/yolov5.hpp": {
+      "before": "633ee5c111141db49eca92b8f531b715432a23a1ee8772d510ed1e200d7f7dcd",
+      "after": "962bc3e5871705679d5d76d646835449fad0635b651d2824dc133624ee876372"
+    }
+  },
+  "source_hashes": {
+    "sp_vision_25/tasks/auto_aim/detector.cpp": "359d06fa12c7c2dd4390639151641650915949ad23843d3f2f67e6bdb54fc98f",
+    "sp_vision_25/tasks/auto_aim/solver.cpp": "55281b4c23c19ebff1e49a90c59f8d451be85fe848e8267dadcac47ff09a76a3",
+    "sp_vision_25/tasks/auto_aim/tracker.hpp": "b30107fa0605409e302db99bac0c643811f16c55d4d27c9ceedea560696e559c",
+    "sp_vision_25/tasks/auto_aim/voter.cpp": "bf23342c89b680e9752da61aabcc0ff20680ad580d1a01eaaa19c58d1f878b46",
+    "sp_vision_25/tasks/auto_aim/yolo.hpp": "fc4384eb2e9daac9d26e9b6c7c54f9455ba1c44df1316c1cb683adaa5f463afd",
+    "sp_vision_25/tasks/auto_aim/target.hpp": "9f5cce44a11d15d516bd16d3a0d7fdff0646554bbb4678804a1ea949841c4a0c",
+    "sp_vision_25/tasks/auto_aim/CMakeLists.txt": "d7bac64c17f50c2d1a1535c1c0c640886900023f5991779c52e36d11e39b8613",
+    "sp_vision_25/tasks/auto_aim/yolo.cpp": "f35bbe8bfe8cc9c9131f5383a7d3dd91a4dd00e83adf44bc6d727979c1b4f933",
+    "sp_vision_25/tasks/auto_aim/shooter.cpp": "b2f0f1689b80437c41b253a4c05c3756b9345131b062609ecf0f46a3ec43b7ac",
+    "sp_vision_25/tasks/auto_aim/armor.hpp": "75872d0223e3de0e19bd04c76385e588e36fd1ea6f0c2fa7f1257f9d55d0738f",
+    "sp_vision_25/tasks/auto_aim/detector.hpp": "536b97e92d3edef733476090d98d255ebfe04dcf3a71021ec80bb93e1d227c84",
+    "sp_vision_25/tasks/auto_aim/tracker.cpp": "14e44ba9a10cf47e16071509861f87d9632e7ecc3d7653d72e55238ca482d5c4",
+    "sp_vision_25/tasks/auto_aim/classifier.cpp": "6c989f6963583f3b2acae5d9f94c726edf91e3db15d92b4be11dd4753b84d4d4",
+    "sp_vision_25/tasks/auto_aim/shooter.hpp": "3aca0d803ff35b591832d0b714aade61d5cb6e624757ce92648217d9d4591270",
+    "sp_vision_25/tasks/auto_aim/target.cpp": "06172a60d5e0430e86487093ae7f4846708e03077dccb96f91521dada74022cb",
+    "sp_vision_25/tasks/auto_aim/classifier.hpp": "144d220575231cc3a6b80ceeb02637a07f57a9c0a071abaeea517e92d33570ef",
+    "sp_vision_25/tasks/auto_aim/aimer.hpp": "055079297115d1906245e76d9d4143518a78412941743f74aa5b2df92414dcdf",
+    "sp_vision_25/tasks/auto_aim/solver.hpp": "ffa4d481c05ea12ea8bf75abe7fc9cecc53bf6e0b4f876f8112fbcd39f2e506c",
+    "sp_vision_25/tasks/auto_aim/aimer.cpp": "263bad3e110fab7adfe469181781bc856d36bd5e07aef635875eff112f017678",
+    "sp_vision_25/tasks/auto_aim/armor.cpp": "12d0a16090dafd08dcc55dbcb453c49810816a81d919912d1f91c27444f12ff2",
+    "sp_vision_25/tasks/auto_aim/voter.hpp": "f3cdf651b0bee4cd07d31afdddb243fc325442ee739aff737388b779c968591e",
+    "sp_vision_25/tasks/auto_aim/planner/fire_window.hpp": "9ecd7984b04cd2b1ece2833238c0436a8ae19094471a505972bde22cccbb4982",
+    "sp_vision_25/tasks/auto_aim/planner/planner.hpp": "2f3bd4d9cc6d2f02ed9f7ee8be08f4c0280aa8cfbc05e428d049bac4755cf2d8",
+    "sp_vision_25/tasks/auto_aim/planner/planner.cpp": "7cc95c1e3cbbf6f419335e0aaa92bc3c5474c7065a6d5783af3abf38111ecf0e",
+    "sp_vision_25/tasks/auto_aim/multithread/mt_detector.hpp": "dc4a4215952643444873b60ed404241ab5cb541202ca5cf45cb92a3877066590",
+    "sp_vision_25/tasks/auto_aim/multithread/mt_detector.cpp": "b8de5252630fe68ff036dded82e05d90044ad2dc743f70641c79ca7164aeed6e",
+    "sp_vision_25/tasks/auto_aim/multithread/commandgener.hpp": "9663b2b9b1fc64ef6ed50cf7b6becf71f20bef6d04018ec5be414afb172a2b2b",
+    "sp_vision_25/tasks/auto_aim/multithread/commandgener.cpp": "772bd35f7d31a7b3a2323ae21c66995ba37e436fc67dbb5744d2dfa1320f5bad",
+    "sp_vision_25/tasks/auto_aim/yolos/yolo11.hpp": "78306b13d8bec5fcc03e85c108af2cfed1967b844b4aeb4e7027ec8244701786",
+    "sp_vision_25/tasks/auto_aim/yolos/yolov8.hpp": "9ac7844ff9315ca9edac07b4c10d8e0503621122ea10ddef7e67f02c02afae23",
+    "sp_vision_25/tasks/auto_aim/yolos/yolo11.cpp": "9da0b42df5cf73784a08bc67d9d657acb47434606bd2cfd483fc5d58651e7b4a",
+    "sp_vision_25/tasks/auto_aim/yolos/yolov8.cpp": "c9e69bc15afa6b2e0f26a6961f04687caa456cc60a25e421c4cb6857f4b6f4ff",
+    "sp_vision_25/tasks/auto_aim/yolos/yolov5.hpp": "962bc3e5871705679d5d76d646835449fad0635b651d2824dc133624ee876372",
+    "sp_vision_25/tasks/auto_aim/yolos/yolov5.cpp": "6bd0bb42141faebc4102e9d1a71f84c2ed3fc31877333734f08f254d72586ce7",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/CMakeLists.txt": "15728ee7ef33070b36c26af883de43dc556cf15998aaf6bfdb513a2470192e39",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/codegen.cpp": "e60895395aa35745cda2b69991fe0eb3c0be96a24d221e63cf5915caeb43a563",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/rho_benchmark.hpp": "d2e62fcfb242d78e09f18cbcba64bde9155e69b10937e2b93e05c7f6cd0c19f0",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/admm.cpp": "7084ba615e0da3e58b0c65d1c7abd958032d0fc1387466985d93ab7b731c61af",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/admm.hpp": "1d202ee47b40dbd6c816de632a33863481f49e04d0a07d083e08b7a91d42f7fe",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/tiny_api.cpp": "7094e666d2c458fd4256cf4828b44b3d0fac5baf7e1cdca3cadad77602331ca1",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/codegen.hpp": "9081d598735576c29467fd606d1d85299ed2bd5dd8e8716f227cc7ae923250a0",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/rho_benchmark.cpp": "ed781545384c3d2be49fd08580e9cd3031d281c3302641e2d93fa56a01ef073a",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/tiny_api_constants.hpp": "757db06631a272fdd3290186566eb8558de4af0f6cb0216c21c23a4f71e72e4e",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/tiny_api.hpp": "b1137a3348e923016e503b2050d19d13393eaf103622b2ab42583a829f93a073",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/types.hpp": "447e921ea20623b81ce95f06f28402a8e3fcee044967eaefd06770ed29220625",
+    "sp_vision_25/tasks/auto_aim/planner/tinympc/error.hpp": "62c60a1baa5b5fb9662e6f373594204cd53c7ede9e7581e24ad44c3352c4fb8d"
+  }
+}

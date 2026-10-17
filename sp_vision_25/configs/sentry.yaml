@@ -1,0 +1,130 @@
+# enemy_color: "red"
+enemy_color: "blue"
+
+
+#####-----神经网络参数-----#####
+yolo_name: yolov5
+classify_model: assets/tiny_resnet.onnx
+yolo11_model_path: assets/yolo11.xml
+yolov8_model_path: assets/yolov8.xml
+yolov5_model_path: assets/yolov5.xml
+device: CPU
+min_confidence: 0.6
+use_traditional: false
+
+#####-----ROI-----#####
+roi: 
+  x: 420
+  y: 50
+  width: 600
+  height: 600
+
+use_roi: false
+
+#####-----USB相机参数-----#####
+image_width: 1280
+image_height: 720
+fov_h: 63.91 # 57.7 #87.7
+fov_v: 38.76 # 56.7 
+new_fov_h: 27 #67
+new_fov_v: 40.9
+usb_frame_rate: 120
+usb_exposure: 20  #1-80000______250
+usb_gamma: 120
+usb_gain: 4 #0-96
+
+#####-----工业相机参数-----#####
+camera_name: "hikrobot"
+exposure_ms: 1
+gain: 16.9
+vid_pid: "2bdf:0001"
+
+#####-----传统方法参数-----#####
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 1.5
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+min_confidence: 0.8
+
+#####-----cboard参数-----#####
+quaternion_canid: 0x01
+bullet_speed_canid: 0x110
+send_canid: 0xff
+can_interface: "can0"
+
+#####-----tracker参数-----#####
+min_detect_count: 5
+max_temp_lost_count: 25
+outpost_max_temp_lost_count: 75
+
+#####-----aimer参数-----#####
+yaw_offset: -0.8 # degree -2.5
+pitch_offset: -1  # degree 2
+comming_angle: 60 # degree
+leaving_angle: 20 # degree
+left_yaw_offset: -1
+right_yaw_offset: -0.6
+decision_speed: 10 # rad/s
+high_speed_delay_time: 0.026 # s
+low_speed_delay_time: 0.010 # s
+
+#####-----shooter参数-----#####
+first_tolerance: 5 # 近距离射击容差，degree
+second_tolerance: 2 # 远距离射击容差，degree
+judge_distance: 3 #距离判断阈值
+auto_fire: true # 是否由自瞄控制射击
+
+#####-----decider参数-----#####
+mode: 1
+
+#####-----工业相机标定参数-----#####
+R_gimbal2imubody: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+
+# 重投影误差: 0.1833px
+camera_matrix: [2414.9359264386621, 0, 717.26243105567414, 0, 2418.0489262208148, 582.68540529942845, 0, 0, 1]
+distort_coeffs: [-0.0209453389287673, 0.15028138841073832, -0.0006517722113234505, -0.0016861906197686788, 0]
+
+# 相机同理想情况的偏角: yaw-1.11 pitch0.01 roll-0.06 degree
+# 标定板到世界坐标系原点的水平距离: 1.20 m
+# 标定板同竖直摆放时的偏角: yaw123.89 pitch14.05 roll-0.86 degree
+R_camera2gimbal: [0.01928451708725664, 0.00012696140743255463, 0.99981402834802846, -0.99981344688553653, -0.0010834913551969569, 0.019284643459122196, 0.0010857382619952124, -0.99999940496346484, 0.00010604311483339372]
+t_camera2gimbal: [0.13089617453251859, 0.0038468007459533785, 0.094139945222010288]
+
+
+# 串口测试
+# 可单独用于 cboard_test；在视觉程序中，把这些键加入其原有相机/自瞄配置。
+# use_can 未填写时默认 true。false 时完全跳过 can_interface 检查和 CAN 打开。
+use_can: false
+quaternion_canid: 0x01
+bullet_speed_canid: 0x110
+send_canid: 0xff
+
+imu_timeout_ms: 3000  # 启动等待上限，超时抛异常
+imu_wait_ms: 100      # imu_at 等待未来样本的总上限
+imu_max_age_ms: 200   # 拒绝过期姿态
+
+serial_imu:
+  # 建议使用 by-id，避免 USB 重插后 ttyACM 编号改变。
+  port: /dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_306235573231-if00
+  baudrate: 921600
+  timeout_ms: 500     # 无有效帧则重新打开串口
+  reconnect_ms: 1000
+  protocol: uart27  # 固定27字节；字段按 new_uart1.png，帧尾按当前设备实测配置
+  header: [0x01, 0x00]
+  tail: [0x0d, 0x00]  # 2026-10-10 实测固件为 0D 00；升级为新图标准后改回 [0x00, 0x0d]
+  rpy_offsets: [6, 2, 10]  # roll/pitch/yaw；固件已对 pitch、roll 取负，不重复取负
+  float_endian: little
+  angle_unit: degrees  # 接收角度单位，可选 degrees（度）/ radians（弧度）
+  rpy_signs: [1, 1, 1]
+  rpy_bias_deg: [0, 0, 0]
+  inverse: false
+  max_abs_angle_deg: 36000
+  tx:  # new_uart2.png：13 字节，FF + yaw/pitch/distance；无开火标志、无帧尾
+    header: 0xff
+    angle_unit: degrees # 发送角度单位，可选 degrees / radians；与接收独立配置
+    write_timeout_ms: 20

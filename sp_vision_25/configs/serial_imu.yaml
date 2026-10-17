@@ -1,0 +1,31 @@
+# 可单独用于 cboard_test；在视觉程序中，把这些键加入其原有相机/自瞄配置。
+# use_can 未填写时默认 true。false 时完全跳过 can_interface 检查和 CAN 打开。
+use_can: false
+quaternion_canid: 0x01
+bullet_speed_canid: 0x110
+send_canid: 0xff
+
+imu_timeout_ms: 3000  # 启动等待上限，超时抛异常
+imu_wait_ms: 100      # imu_at 等待未来样本的总上限
+imu_max_age_ms: 200   # 拒绝过期姿态
+
+serial_imu:
+  # 建议使用 by-id，避免 USB 重插后 ttyACM 编号改变。
+  port: /dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_306235573231-if00
+  baudrate: 921600
+  timeout_ms: 500     # 无有效帧则重新打开串口
+  reconnect_ms: 1000
+  protocol: uart27  # new_uart1.png：27 字节，01 00 ... 00 0D
+  header: [0x01, 0x00]
+  tail: [0x00, 0x0d]
+  rpy_offsets: [6, 2, 10]  # roll/pitch/yaw；固件已对 pitch、roll 取负，不重复取负
+  float_endian: little
+  angle_unit: degrees  # 接收角度单位，可选 degrees（度）/ radians（弧度）
+  rpy_signs: [1, 1, 1]
+  rpy_bias_deg: [0, 0, 0]
+  inverse: false
+  max_abs_angle_deg: 36000
+  tx:  # new_uart2.png：13 字节，FF + yaw/pitch/distance；无开火标志、无帧尾
+    header: 0xff
+    angle_unit: degrees # 发送角度单位，可选 degrees / radians；与接收独立配置
+    write_timeout_ms: 20

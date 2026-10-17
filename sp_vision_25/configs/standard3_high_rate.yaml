@@ -1,0 +1,158 @@
+# Throughput candidate, 2026-10-15. Requires the matching SP Tracker/Planner changes.
+# Hardware calibration, offsets, models and UART values remain those of standard3.
+# Qualification and limitations: ../docs/parameter-tuning.md
+enemy_color: "red"
+# enemy_color: "blue"
+
+#####-----神经网络参数-----#####
+yolo_name: yolov5
+classify_model: assets/tiny_resnet.onnx
+yolo11_model_path: assets/yolo11.xml
+yolov8_model_path: assets/yolov8.xml
+yolov5_model_path: assets/yolov5.xml
+device: GPU
+min_confidence: 0.8
+use_traditional: true
+
+#####-----ROI-----#####
+roi: 
+  x: 420
+  y: 50
+  width: 600
+  height: 600
+
+use_roi: false
+
+#####-----传统方法参数-----#####
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 1.5
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+
+#####-----tracker参数-----#####
+min_detect_count: 5
+max_temp_lost_count: 15
+outpost_max_temp_lost_count: 75
+
+#####-----aimer参数-----#####
+yaw_offset: 2 # degree -2.5
+pitch_offset: 6.5 # degree 2
+comming_angle: 55 # degree
+leaving_angle: 20 # degree
+decision_speed: 7 # rad/s
+high_speed_delay_time: 0.0 # s
+low_speed_delay_time: 0.0 # s planner use this value
+
+#####-----shooter参数-----#####
+first_tolerance: 3 # 近距离射击容差，degree
+second_tolerance: 2 # 远距离射击容差，degree
+judge_distance: 2 #距离判断阈值
+auto_fire: true # 是否由自瞄控制射击
+
+camera_name: "hikrobot"
+exposure_ms: 2.5
+gain: 16.9
+vid_pid: "2bdf:0001"
+
+#  1  0  0
+#  0  1  0
+#  0  0  1
+R_gimbal2imubody: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+
+# 重投影误差: 0.1820px
+camera_matrix: [1785.4881526822305, 0, 672.4806478241826, 0, 1785.026019470562, 559.89603224794314, 0, 0, 1]
+distort_coeffs: [-0.076005079619881746, 0.11182817466388446, 0.0005362204787722057, -0.0027546300984895122, 0]
+
+# 相机同理想情况的偏角: yaw1.44 pitch-7.28 roll0.96 degree
+# 标定板到世界坐标系原点的水平距离: 1.13 m
+# 标定板同竖直摆放时的偏角: yaw7.61 pitch13.92 roll-0.46 degree
+R_camera2gimbal: [-0.027182119030230909, -0.12616154330853446, 0.99163723074269183, -0.99949106557517331, 0.019998323121329122, -0.024853106601381177, -0.016695575474690555, -0.99180811252093692, -0.12664093215554434]
+t_camera2gimbal: [0.13160669975045827, 0.10377721766577375, 0.024908271912914642]
+
+#####-----cboard参数-----#####
+quaternion_canid: 0x100
+bullet_speed_canid: 0x101
+send_canid: 0xff
+can_interface: "can0"
+
+#####-----gimbal参数-----#####
+com_port: /dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_306235573231-if00
+gimbal_baudrate: 921600
+yaw_kp: 0
+yaw_kd: 0
+pitch_kp: 0
+pitch_kd: 0
+
+#####-----planner-----#####
+fire_thresh: 0.0035
+
+max_yaw_acc: 50
+Q_yaw: [9e6, 0]
+R_yaw: [1]
+
+max_pitch_acc: 100
+Q_pitch: [9e6, 0]
+R_pitch: [1]
+
+#####-----buff_detector参数-----#####
+model: "assets/yolo11_buff_int8.xml"
+
+#####-----buff_aimer参数-----#####
+fire_gap_time: 0.700   # s
+predict_time: 0.120     # s
+
+
+
+# 当前电控UART：SP欧拉角RX 44字节，SP角度/速度/加速度TX 44字节，字段布局不同。
+# Gimbal 和 CBoard 均用 false 选择 UART，不访问 CAN。
+use_can: false
+quaternion_canid: 0x01
+bullet_speed_canid: 0x110
+send_canid: 0xff
+
+imu_timeout_ms: 3000  # 启动等待上限，超时抛异常
+imu_wait_ms: 100      # imu_at 等待未来样本的总上限
+imu_max_age_ms: 200   # 拒绝过期姿态
+
+serial_imu:
+  # 建议使用 by-id，避免 USB 重插后 ttyACM 编号改变。
+  port: /dev/serial/by-id/usb-STMicroelectronics_STM32_Virtual_ComPort_306235573231-if00
+  baudrate: 921600
+  timeout_ms: 500     # 无有效帧则重新打开串口
+  reconnect_ms: 1000
+  protocol: uart44
+  frame_size: 44
+  frame_stride: 44
+  header: [0x53, 0x50]
+  tail: [0x0d]
+  rpy_offsets: [23, 19, 27]  # roll/pitch/yaw；忽略偏移3..18的零四元数区
+  float_endian: little
+  angle_unit: degrees  # 接收角度单位，可选 degrees（度）/ radians（弧度）
+  velocity_unit: degrees  # 电控Gyro是度/秒；Gimbal转换为弧度/秒
+  rpy_signs: [1, 1, 1]
+  rpy_bias_deg: [0, 0, 0]
+  inverse: false
+  max_abs_angle_deg: 36000
+  tx:  # 原44字节SP顺序：pitch/roll/yaw@19/23/27，速度@31/35；忽略acc，CRC=0，尾0D
+    protocol: sp44
+    header: [0x53, 0x50]
+    tail: [0x0d]
+    angle_unit: degrees # 发送角度单位，可选 degrees / radians；与接收独立配置
+    write_timeout_ms: 20
+
+# 新版 Gimbal 链路没有模式/弹速状态帧，使用配置提供默认值。
+uart_mode: auto_aim
+uart_bullet_speed: 22
+
+
+# Maximum gap between visual observations; existing execution watchdogs still apply.
+tracker_max_dt: 0.2  # s
+# Planning error ellipse inside the central half of the estimated armor projection.
+# Vertical error remains bounded by fire_thresh; range and obliquity shrink both axes.
+fire_yaw_scale: 3.0
+fire_armor_fraction: 0.5
