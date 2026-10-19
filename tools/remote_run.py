@@ -26,9 +26,9 @@ EXCLUDES = [
 
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--host", default=os.environ.get("ZIMIAO_REMOTE_HOST", "192.168.1.102"))
+    parser.add_argument("--host", default=os.environ.get("ZIMIAO_REMOTE_HOST", "wuxian-remote"))
     parser.add_argument("--user", default=os.environ.get("ZIMIAO_REMOTE_USER", "wuxian"))
-    parser.add_argument("--port", type=int, default=22)
+    parser.add_argument("--port", type=int, help="SSH port override; otherwise honor ~/.ssh/config")
     parser.add_argument("--identity", help="SSH private key path (never synchronized)")
     parser.add_argument("--remote-dir", default=".cache/zimiao-remote/workspace",
                         help="Dedicated ASCII directory, relative to remote home or absolute")
@@ -48,7 +48,7 @@ def parse_args():
     args.command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if not re.fullmatch(r"[a-zA-Z0-9_.-]+", args.user) or not re.fullmatch(r"[a-zA-Z0-9_.-]+", args.host):
         parser.error("Invalid SSH host/user")
-    if not 1 <= args.port <= 65535 or args.jobs < 1 or args.seconds <= 0 or args.lock_timeout < 0:
+    if (args.port is not None and not 1 <= args.port <= 65535) or args.jobs < 1 or args.seconds <= 0 or args.lock_timeout < 0:
         parser.error("Invalid port, concurrency, duration or lock timeout")
     if not re.fullmatch(r"[a-zA-Z0-9_./~-]+", args.remote_dir):
         parser.error("remote-dir must be an ASCII path")
@@ -80,9 +80,11 @@ def main():
             raise RuntimeError(f"Local dependency missing: {program}")
     output = ROOT / "artifacts" / "remote" / run_id
     output.mkdir(parents=True)
-    ssh = ["ssh", "-p", str(args.port), "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
+    ssh = ["ssh", "-o", "BatchMode=yes", "-o", "ConnectTimeout=8",
            "-o", "StrictHostKeyChecking=yes", "-o", "ServerAliveInterval=15",
            "-o", "ServerAliveCountMax=3"]
+    if args.port is not None:
+        ssh += ["-p", str(args.port)]
     if args.identity:
         ssh += ["-i", str(Path(args.identity).expanduser())]
     target = f"{args.user}@{args.host}"

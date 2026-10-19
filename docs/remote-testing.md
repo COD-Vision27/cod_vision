@@ -1,5 +1,17 @@
 # SSH 远程运行与测试
 
+## 当前连接：服务器中转（2026-10-18）
+
+调度与可视化默认使用本机已有的 SSH 别名 `wuxian-remote`：本机 → `ubuntu@111.229.26.21:22` → 服务器 loopback 反向隧道端口 `2222` → 原 `wuxian` RTX 4060 目标机。服务器只转发 SSH，项目构建、ROS 和 Vulkan 渲染仍在目标机执行。`ssh wuxian-remote` 已确认原主机名与 RTX 4060。
+
+```bash
+ssh wuxian-remote
+python3 tools/remote_run.py doctor
+python3 tools/sim_view.py --profile standard3_high_rate
+```
+
+脚本未显式指定 `--port` 时遵从 `~/.ssh/config`，因此不会用 22 覆盖别名中的目标端口 2222。`--host` 接受 SSH 别名或地址；回到原局域网时可显式使用 `--host 192.168.1.102 --port 22`。SSH 配置和私钥不随项目同步。其他电脑需自行配置同等 SSH 别名及认证，不能仅将 `--host` 改成中转服务器公网 IP 就在服务器上运行项目。
+
 本机只负责编辑、同步和调度；项目命令在 `wuxian@192.168.1.102` 执行。默认远程目录为 `/home/wuxian/.cache/zimiao-remote/workspace`，无需两个电脑具有相同路径。调度程序不自动安装依赖，也不在连接失败后自动启动本机编译或仿真。
 
 要直接看到仿真窗口，推荐同时启动仿真和自瞄的可视化入口：

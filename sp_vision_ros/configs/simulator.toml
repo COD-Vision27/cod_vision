@@ -114,3 +114,20 @@ fov = 45.0                      # degrees - field of view
 free_move_speed = 8.0           # m/s - free camera movement speed
 follow_offset = [0.0, 3.0, 2.0] # follow camera offset
 mouse_sensitivity = 0.003       # mouse look sensitivity
+
+# 自瞄测试场景；命令行 --scenario 优先于 mode。修改后重新启动。
+[scenario]
+mode = "static"                # static / spin / move
+# 小陀螺敌方转速 rad/s，可为负数反转，0 为停转。
+# 取消注释可独立设置；省略时继承 [vehicle].rotation_speed。
+# spin_speed_rad_s = 7.42
+target_distance_m = 4.0         # 敌方初始前方距离 m
+target_height_m = 1.0           # 敌方生成高度 m，随后由物理落地
+target_lateral_m = 0.0          # 敌方初始横向位置/横移中心 m
+initial_pitch_deg = -9.0        # 己方初始枪口俯仰角，向下为负
+move_amplitude_m = 0.8         # 横移半幅 m
+move_peak_speed_mps = 0.64     # 正弦参考轨迹的峰值速度 m/s（实际运动由物理控制）
+move_start_delay_s = 4.0        # 启动后等待时间 s
+move_position_gain = 3.0       # 横移位置反馈增益
+move_velocity_gain = 2.0       # 横移速度反馈增益
+move_deadband = 0.2            # 横移驱动死区

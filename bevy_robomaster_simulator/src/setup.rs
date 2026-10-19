@@ -192,14 +192,16 @@ pub fn setup_vehicle(
         commands
             .entity(q.clone().exact("SHOT_DIRECTION").one().unwrap())
             .insert(InfantryLaunchOffset);
-        if std::env::var("DAEDALUS_SP_SCENARIO").is_ok() {
+        if sim_config.scenario_mode().is_some() {
             let shot = q.clone().exact("SHOT_DIRECTION").one().unwrap();
             let mount = transforms.get(shot).unwrap().rotation
                 * Quat::from_rotation_x(std::f32::consts::FRAC_PI_2);
             let mut initial = *transforms.get(gimbal).unwrap();
             // Test camera sees the settled armor below the player's raised platform.
-            // A fixed 9 degree depression also keeps it clear of the model's own barrel.
-            initial.rotation = Quat::from_rotation_x(-9.0_f32.to_radians()) * mount.inverse();
+            // The default 9 degree depression keeps it clear of the model's own barrel.
+            initial.rotation =
+                Quat::from_rotation_x(sim_config.scenario.initial_pitch_deg.to_radians())
+                    * mount.inverse();
             commands.entity(gimbal).insert(initial);
         }
         commands
@@ -207,7 +209,6 @@ pub fn setup_vehicle(
             .insert(InfantryViewOffset);
     }
 }
-
 
 /// Queues Avian collider construction for the named nodes of a loaded world.
 ///

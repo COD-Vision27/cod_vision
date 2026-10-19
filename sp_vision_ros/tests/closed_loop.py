@@ -65,7 +65,7 @@ def main():
         enemy_hits={e['shot_id'] for e in hits if e.get('kind')=='projectile' and e.get('team')=='blue' and e.get('armor_label')==3}
         completed={e['shot_id']:e['outcome'] for e in events if e.get('event')=='shot_finished' and e.get('kind')=='projectile'}
         completed_hits=sum(outcome=='armor_hit' for outcome in completed.values())
-        result={'scenario':args.scenario,'aim_config':env['SP_AIM_CONFIG'],'configs':selected,'warmup_seconds':warmup,'move_reference_amplitude_m':0.8 if args.scenario=='move' else None,'sim_exit':children[1].returncode,'wall_seconds':time.monotonic()-start,
+        result={'scenario':args.scenario,'aim_config':env['SP_AIM_CONFIG'],'configs':selected,'warmup_seconds':warmup,'sim_exit':children[1].returncode,'wall_seconds':time.monotonic()-start,
                 'vision_frames':len(vision),'frames_with_armors':sum(r['armors']>0 for r in vision),
                 'controlled_plans':len(controlled),'fire_plans':sum(p.fire for p in plans),
                 'shots':len(shots),'armor_hits':len(hits),'enemy_hit_shots':len(enemy_hits),

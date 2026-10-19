@@ -1,4 +1,8 @@
 /artifacts/
+# Remote scheduler output and local Git history backups.
+/artifacts/remote/
+/artifacts/git-backups/
+/.zimiao-remote-worker
 __pycache__/
 *.pyc
 .venv/

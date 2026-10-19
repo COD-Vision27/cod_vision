@@ -72,7 +72,7 @@ python3 sp_vision_ros/tests/closed_loop.py --scenario spin --seconds 25
 python3 sp_vision_ros/tests/closed_loop.py --scenario move --seconds 25
 ```
 
-测试模式将蓝方步兵置于前方 4 米，并初始化己方枪口向下 9°，避开自身枪管遮挡；`spin` 旋转敌方底盘，`move` 让敌方通过原物理驱动跟随 ±0.8 米的横移参考（4 秒后开始）。正常运行不设置 `DAEDALUS_SP_SCENARIO`，保留原场景和交互行为。每次实验写出结果 JSON、诊断 JSONL、仿真命中遥测和最后一帧图像。
+测试模式默认将蓝方步兵置于前方 4 米，初始枪口向下 9°；`spin` 旋转敌方底盘，`move` 通过原物理驱动跟随 ±0.8 米的横移参考（4 秒后开始）。这些参数现可通过 [configs/simulator.toml 的 scenario 段](configs/README.md)配置；命令行场景类型覆盖配置的 `mode`，其余运动参数仍读 TOML。要恢复原交互场景，需同时省略 TOML 的 `scenario.mode` 和 `DAEDALUS_SP_SCENARIO`。每次实验写出结果 JSON、诊断 JSONL、仿真命中遥测和最后一帧图像。
 
 ## ROS 接口
 

@@ -5,7 +5,7 @@ use crate::components::{
     ActiveSlapper, Controlled, Infantry, InfantryChassis, InfantryGimbal, SlapperInfantry,
     SubscribeAutoAim,
 };
-use crate::config::SimulationConfig;
+use crate::config::{ScenarioMode, SimulationConfig};
 use crate::robomaster::vehicle::movement::VehicleDynamic;
 use crate::systems::ControllerState;
 use avian3d::prelude::*;
@@ -145,11 +145,28 @@ pub fn remote_vehicle_controls(
         controller.chassis_yaw,
         controller.chassis_roll,
         controller.chassis_pitch,
-        config.vehicle.rotation_speed,
+        if config.scenario_mode() == Some(ScenarioMode::Spin) {
+            config
+                .scenario
+                .spin_speed_rad_s
+                .unwrap_or(config.vehicle.rotation_speed)
+        } else {
+            config.vehicle.rotation_speed
+        },
         config.vehicle.yaw_acceleration,
         config.vehicle.tilt_rotation_speed,
         dt,
     );
+    if config.scenario_mode() == Some(ScenarioMode::Spin) && time.elapsed_secs() % 1.0 < dt {
+        info!(
+            "SP spin motion: target_rate={:.3} rad/s actual_rate={:.3} rad/s",
+            config
+                .scenario
+                .spin_speed_rad_s
+                .unwrap_or(config.vehicle.rotation_speed),
+            chassis_data.yaw_velocity
+        );
+    }
 }
 
 pub fn gimbal_controls(

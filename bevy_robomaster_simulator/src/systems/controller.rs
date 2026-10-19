@@ -4,6 +4,7 @@ use core::time::Duration;
 use std::sync::atomic::Ordering;
 
 use crate::components::{ActiveSlapper, Infantry, SubscribeAutoAim};
+use crate::config::{ScenarioMode, SimulationConfig};
 use avian3d::prelude::LinearVelocity;
 
 const GAMEPAD_STICK_DEADZONE: f32 = 0.12;
@@ -145,27 +146,37 @@ pub struct ControllerState {
 /// Optional repeatable SP integration scenarios; normal interactive input is unchanged.
 pub fn sample_sp_scenario(
     time: Res<Time>,
+    config: Res<SimulationConfig>,
     mut state: ResMut<ControllerState>,
     target: Query<(&GlobalTransform, &LinearVelocity), (With<Infantry>, With<ActiveSlapper>)>,
 ) {
-    match std::env::var("DAEDALUS_SP_SCENARIO").as_deref() {
-        Ok("spin") => state.remote.chassis_yaw = 1.0,
-        Ok("move") => {
+    match config.scenario_mode() {
+        Some(ScenarioMode::Spin) => state.remote.chassis_yaw = 1.0,
+        Some(ScenarioMode::Move) => {
             // Keep the original physical drive model. Stick magnitude is normalized
             // there, so use position/velocity feedback to bound this test trajectory.
             // Ground truth drives only the test enemy, never the vision/aim pipeline.
-            let Ok((pose, velocity)) = target.single() else { return; };
-            let t = (time.elapsed_secs() - 4.0).max(0.0);
-            let desired_x = 0.8 * (t * 0.8).sin();
-            let desired_v = if t > 0.0 { 0.64 * (t * 0.8).cos() } else { 0.0 };
-            let correction = 3.0 * (desired_x - pose.translation().x)
-                + 2.0 * (desired_v - velocity.x);
-            state.remote.movement.x = if correction.abs() > 0.2 { correction.signum() } else { 0.0 };
+            let Ok((pose, velocity)) = target.single() else {
+                return;
+            };
+            let motion = &config.scenario;
+            let (desired_x, desired_v) = motion.move_reference(time.elapsed_secs());
+            let correction = motion.move_position_gain * (desired_x - pose.translation().x)
+                + motion.move_velocity_gain * (desired_v - velocity.x);
+            state.remote.movement.x = if correction.abs() > motion.move_deadband {
+                correction.signum()
+            } else {
+                0.0
+            };
             if time.elapsed_secs() % 1.0 < time.delta_secs() {
-                info!("SP move scenario: x={:.3} m vx={:.3} m/s desired_x={:.3} m",
-                    pose.translation().x, velocity.x, desired_x);
+                info!(
+                    "SP move scenario: x={:.3} m vx={:.3} m/s desired_x={:.3} m",
+                    pose.translation().x,
+                    velocity.x,
+                    desired_x
+                );
             }
-        },
+        }
         _ => {}
     }
 }

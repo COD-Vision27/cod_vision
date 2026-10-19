@@ -78,7 +78,15 @@ impl Plugin for ScenePlugin {
 }
 
 async fn load_scene(w: AsyncWorld) {
-    let sp_scenario = std::env::var("DAEDALUS_SP_SCENARIO").is_ok();
+    let scenario_config = w
+        .with_world(|world| world.resource::<crate::config::SimulationConfig>().clone())
+        .await;
+    let sp_scenario = scenario_config.scenario_mode().is_some();
+    info!(
+        "SP scenario settings: mode={:?}, config={:?}",
+        scenario_config.scenario_mode(),
+        scenario_config.scenario
+    );
     let assets = w
         .with_world(|world| world.resource::<AssetServer>().clone())
         .await;
@@ -193,7 +201,11 @@ async fn load_scene(w: AsyncWorld) {
             scene("vehicle.glb"),
             (
                 if sp_scenario {
-                    Transform::from_xyz(0.0, 1.0, -4.0)
+                    Transform::from_xyz(
+                        scenario_config.scenario.target_lateral_m,
+                        scenario_config.scenario.target_height_m,
+                        -scenario_config.scenario.target_distance_m,
+                    )
                 } else {
                     Transform::from_xyz(1.0, 1.0, 1.0)
                 },

@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import remote_run
@@ -14,6 +15,15 @@ import remote_worker
 
 
 class SchedulerTests(unittest.TestCase):
+    def test_ssh_alias_port_is_not_overridden_by_default(self):
+        with patch.dict('os.environ', {}, clear=True):
+            with patch.object(sys, 'argv', ['remote_run.py', 'doctor']):
+                args = remote_run.parse_args()
+                self.assertEqual(args.host, 'wuxian-remote')
+                self.assertIsNone(args.port)
+            with patch.object(sys, 'argv', ['remote_run.py', '--port', '2222', 'doctor']):
+                self.assertEqual(remote_run.parse_args().port, 2222)
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory(prefix="zimiao-scheduler-")
         self.root = Path(self.temp.name) / "workspace"

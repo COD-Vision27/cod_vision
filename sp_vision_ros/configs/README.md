@@ -2,6 +2,51 @@
 
 这是 ROS 自瞄仿真实际读取的配置目录，形式与 `sp_vision_25/configs` 一致。修改这里的参数后重新启动即可，不需要重新编译。修改 C++ / Rust 算法或 ROS 消息后才需远程构建。
 
+## 配置敌方转速、横移与距离
+
+编辑 [simulator.toml](simulator.toml) 中已有的 `[scenario]` 段，例如将该段的相应字段改为：
+
+```toml
+[scenario]
+mode = "spin"                  # static 静止 / spin 小陀螺 / move 横移
+spin_speed_rad_s = 3.0          # 敌方底盘转速 rad/s；负数反转，0 停转
+target_distance_m = 4.0         # 初始前方距离 m
+target_height_m = 1.0           # 生成高度 m，随后落地
+target_lateral_m = 0.0          # 初始横向位置/横移中心 m
+initial_pitch_deg = -9.0        # 己方初始枪口俯仰，向下为负
+move_amplitude_m = 0.8         # 横移半幅 m
+move_peak_speed_mps = 0.64     # 正弦参考速度峰值 m/s
+move_start_delay_s = 4.0       # 横移开始前等待 s
+```
+
+不要再追加第二个 `[scenario]` 段。未写出的字段使用默认值。省略 `spin_speed_rad_s` 时，敌方小陀螺继承 `[vehicle].rotation_speed`；填写后仅覆盖测试敌方的转速。1 圈/s = 2π rad/s ≈ 6.283 rad/s。转速变化仍受 `[vehicle].yaw_acceleration` 限制，不会瞬间达到目标转速。
+
+```bash
+# 按 TOML 的 mode 和运动参数运行（不再默认用命令行 static 覆盖）
+python3 tools/sim_view.py --profile standard3_high_rate --seconds 180
+
+# 临时指定横移模式，仍读取 TOML 内的速度、幅度等参数
+python3 tools/sim_view.py --scenario move --seconds 180
+```
+
+优先级为命令行 `--scenario`（或直接脚本的 `DAEDALUS_SP_SCENARIO`）高于 TOML 的 `mode`。自动闭环测试也会显式指定场景，所以不会被 `mode` 改成其他测试。
+
+横移周期为 `2π × move_amplitude_m / move_peak_speed_mps`；幅度或参考速度为零表示不横移。实际速度由原物理驱动和反馈控制决定，受 `[vehicle].max_speed`、加速度、阻尼等影响，参考峰值不是对实际速度的硬保证。高级反馈参数 `move_position_gain`、`move_velocity_gain`、`move_deadband` 同样可在 TOML 调整。转速日志打印 `target_rate` 与 `actual_rate`，横移日志打印实际位置/速度与参考位置，便于确认参数生效。
+
+场景模式、生成位置和初始俯仰需重新启动才完整生效。当前运行入口会把所选 TOML 复制到目标机运行目录，因此修改本地源配置后请重启调度；不承诺本地编辑会实时推送到正在运行的窗口。只调整这些运动参数不需要改 YAML 相机外参。原仿真 `bevy_robomaster_simulator/config.toml` 没有 `[scenario]` 段时仍为原交互场景。
+
+2026-10-18：上述场景参数已接入代码，增加默认兼容、反向转速、零幅度/速度与非法参数的 Rust 测试。Python 配置/调度测试、3 项几何测试和 Rust 格式/语法解析检查通过。经 `wuxian-remote` 中转，作业 `20261018-033748-dd51549c` 已在原 RTX 4060 目标机重新构建通过，包括 CTest；随后继续运行 Rust 测试与五种参数场景时，服务器反向隧道 `127.0.0.1:2222` 已停止监听，测试在连接阶段中断。因此本次运行验证仍待隧道恢复，下方 2026-10-15 记录不代表这次改动已验证。
+
+恢复连接后，可运行以下检查；后续只改 TOML 不需重新编译：
+
+```bash
+python3 tools/remote_run.py --env CARGO_NET_OFFLINE=true build
+python3 tools/remote_run.py run -- bash -c 'source sp_vision_ros/scripts/env.sh && cd bevy_robomaster_simulator && cargo test --no-default-features --features ros2 --bin daedalus -j8'
+python3 tools/remote_run.py run -- bash -c 'source sp_vision_ros/scripts/env.sh && xvfb-run -a python3 tools/verify_sim_motion.py'
+```
+
+`verify_sim_motion.py` 在目标机分别验证正转 3 rad/s、反转 −2 rad/s、停转、继承车辆转速 1.5 rad/s 和自定义横移；每项 12 秒，检查 RTX 4060、实际转速/运动日志、退出码，回传 `motion-config-validation.json` 及每项 TOML / 日志。它不启动实机硬件或自瞄算法，专门验证仿真运动参数。
+
 ## 文件对应关系
 
 | 文件 | 用途 | 选择方法 |

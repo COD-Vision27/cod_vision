@@ -21,20 +21,20 @@ MARKER = 'ZIMIAO_SIM_VIEW '
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--view', choices=['local', 'remote'], default='local')
-    parser.add_argument('--scenario', choices=['static', 'spin', 'move'], default='static')
+    parser.add_argument('--scenario', choices=['static', 'spin', 'move'], help='Override scenario.mode in simulator TOML')
     parser.add_argument('--base', '--profile', choices=PROFILES, default='standard3')
     parser.add_argument('--aim-config', help='Custom YAML path relative to the workspace root')
     parser.add_argument('--sim-config', help='Custom simulator TOML path relative to the workspace root')
     parser.add_argument('--seconds', type=float, default=120)
-    parser.add_argument('--host', default=os.environ.get('ZIMIAO_REMOTE_HOST', '192.168.1.102'))
+    parser.add_argument('--host', default=os.environ.get('ZIMIAO_REMOTE_HOST', 'wuxian-remote'))
     parser.add_argument('--user', default=os.environ.get('ZIMIAO_REMOTE_USER', 'wuxian'))
-    parser.add_argument('--port', type=int, default=22)
+    parser.add_argument('--port', type=int, help='SSH port override; otherwise honor ~/.ssh/config')
     parser.add_argument('--identity')
     parser.add_argument('--local-port', type=int, default=6080)
     parser.add_argument('--no-open', action='store_true', help='Print browser URL without opening it')
     parser.add_argument('--verbose', action='store_true', help='Stream all simulator/algorithm diagnostics')
     args = parser.parse_args()
-    if not 10 <= args.seconds <= 86400 or not 1 <= args.local_port <= 65535 or not 1 <= args.port <= 65535:
+    if not 10 <= args.seconds <= 86400 or not 1 <= args.local_port <= 65535 or (args.port is not None and not 1 <= args.port <= 65535):
         parser.error('Invalid duration or port')
     if any(not re.fullmatch(r'[a-zA-Z0-9_.-]+', value) for value in (args.host, args.user)):
         parser.error('Invalid host/user')
@@ -46,17 +46,22 @@ def main():
                 probe.bind(('127.0.0.1', args.local_port))
             except OSError:
                 parser.error('Local viewer port is busy; choose another --local-port (e.g. 6081)')
-    common = ['--host', args.host, '--user', args.user, '--port', str(args.port)]
-    ssh = ['ssh', '-p', str(args.port), '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
+    common = ['--host', args.host, '--user', args.user]
+    ssh = ['ssh', '-o', 'BatchMode=yes', '-o', 'StrictHostKeyChecking=yes',
            '-o', 'ConnectTimeout=8', '-o', 'ServerAliveInterval=15', '-o', 'ServerAliveCountMax=3']
+    if args.port is not None:
+        common += ['--port', str(args.port)]
+        ssh += ['-p', str(args.port)]
     if args.identity:
         common += ['--identity', args.identity]
         ssh += ['-i', str(Path(args.identity).expanduser())]
     command = [sys.executable, '-u', str(ROOT / 'tools/remote_run.py'), *common,
                'run', '--', 'python3', '-u', 'tools/sim_view_worker.py', '--view', args.view,
-               '--scenario', args.scenario, '--base', args.base, '--seconds', str(args.seconds),
+               '--base', args.base, '--seconds', str(args.seconds),
                '--aim-config', str(aim_config.relative_to(ROOT)),
                '--sim-config', str(sim_config.relative_to(ROOT))]
+    if args.scenario:
+        command += ['--scenario', args.scenario]
     scheduler = subprocess.Popen(command, cwd=ROOT, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                  text=True, start_new_session=True)
     tunnel = None

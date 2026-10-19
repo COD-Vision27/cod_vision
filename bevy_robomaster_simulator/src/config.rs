@@ -25,9 +25,116 @@ pub struct SimulationConfig {
     pub physics: PhysicsConfig,
     pub vehicle: VehicleConfig,
     #[serde(default)]
+    pub scenario: ScenarioConfig,
+    #[serde(default)]
     pub mecanum: MecanumConfig,
     pub projectile: ProjectileConfig,
     pub camera: CameraConfig,
+}
+
+/// Repeatable auto-aim target motion; omitted in the original interactive config.
+#[derive(Deserialize, Reflect, Clone, Copy, Debug, PartialEq, Eq)]
+#[serde(rename_all = "snake_case")]
+pub enum ScenarioMode {
+    Static,
+    Spin,
+    Move,
+}
+
+#[derive(Deserialize, Reflect, Clone, Debug)]
+#[serde(default)]
+pub struct ScenarioConfig {
+    pub mode: Option<ScenarioMode>,
+    /// Signed angular speed; omitted inherits vehicle.rotation_speed.
+    pub spin_speed_rad_s: Option<f32>,
+    pub target_distance_m: f32,
+    pub target_height_m: f32,
+    pub target_lateral_m: f32,
+    pub initial_pitch_deg: f32,
+    pub move_amplitude_m: f32,
+    pub move_peak_speed_mps: f32,
+    pub move_start_delay_s: f32,
+    pub move_position_gain: f32,
+    pub move_velocity_gain: f32,
+    pub move_deadband: f32,
+}
+
+impl Default for ScenarioConfig {
+    fn default() -> Self {
+        Self {
+            mode: None,
+            spin_speed_rad_s: None,
+            target_distance_m: 4.0,
+            target_height_m: 1.0,
+            target_lateral_m: 0.0,
+            initial_pitch_deg: -9.0,
+            move_amplitude_m: 0.8,
+            move_peak_speed_mps: 0.64,
+            move_start_delay_s: 4.0,
+            move_position_gain: 3.0,
+            move_velocity_gain: 2.0,
+            move_deadband: 0.2,
+        }
+    }
+}
+
+impl ScenarioConfig {
+    pub fn validate(&self) -> Result<(), &'static str> {
+        if [
+            self.target_distance_m,
+            self.target_height_m,
+            self.target_lateral_m,
+            self.initial_pitch_deg,
+            self.move_amplitude_m,
+            self.move_peak_speed_mps,
+            self.move_start_delay_s,
+            self.move_position_gain,
+            self.move_velocity_gain,
+            self.move_deadband,
+        ]
+        .iter()
+        .any(|v| !v.is_finite())
+            || self.spin_speed_rad_s.is_some_and(|v| !v.is_finite())
+        {
+            return Err("scenario parameters must be finite");
+        }
+        if self.target_distance_m <= 0.0
+            || self.target_height_m < 0.0
+            || self.initial_pitch_deg.abs() > 89.0
+            || self.move_amplitude_m < 0.0
+            || self.move_peak_speed_mps < 0.0
+            || self.move_start_delay_s < 0.0
+            || self.move_position_gain < 0.0
+            || self.move_velocity_gain < 0.0
+            || self.move_deadband < 0.0
+        {
+            return Err("invalid scenario distance, pitch, motion or controller bounds");
+        }
+        Ok(())
+    }
+
+    pub fn move_reference(&self, elapsed: f32) -> (f32, f32) {
+        if elapsed <= self.move_start_delay_s || self.move_amplitude_m == 0.0 {
+            return (self.target_lateral_m, 0.0);
+        }
+        let omega = self.move_peak_speed_mps / self.move_amplitude_m;
+        let phase = (elapsed - self.move_start_delay_s) * omega;
+        (
+            self.target_lateral_m + self.move_amplitude_m * phase.sin(),
+            self.move_peak_speed_mps * phase.cos(),
+        )
+    }
+}
+
+impl SimulationConfig {
+    pub fn scenario_mode(&self) -> Option<ScenarioMode> {
+        match std::env::var("DAEDALUS_SP_SCENARIO").as_deref() {
+            Ok("static") => Some(ScenarioMode::Static),
+            Ok("spin") => Some(ScenarioMode::Spin),
+            Ok("move") => Some(ScenarioMode::Move),
+            _ => self.scenario.mode,
+        }
+    }
 }
 
 /// Optional JSONL output used to measure simulator shots without changing the
@@ -368,13 +475,27 @@ impl Default for LivoxRosConfig {
 impl SimulationConfig {
     pub fn load() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let content = std::fs::read_to_string("config.toml")?;
-        Ok(toml::from_str(&content)?)
+        let config: Self = toml::from_str(&content)?;
+        config.scenario.validate()?;
+        if !config.vehicle.rotation_speed.is_finite()
+            || !config.vehicle.yaw_acceleration.is_finite()
+            || config.vehicle.yaw_acceleration <= 0.0
+        {
+            return Err(
+                "vehicle rotation_speed must be finite and yaw_acceleration must be positive"
+                    .into(),
+            );
+        }
+        Ok(config)
     }
 }
 
 impl Default for SimulationConfig {
     fn default() -> Self {
         Self::load().unwrap_or_else(|e| {
+            if Path::new("config.toml").exists() {
+                panic!("Invalid config.toml: {e}");
+            }
             warn!("Failed to load config.toml: {}, using defaults", e);
             Self {
                 window: WindowConfig::default(),
@@ -386,6 +507,7 @@ impl Default for SimulationConfig {
                 telemetry: TelemetryConfig::default(),
                 physics: PhysicsConfig::default(),
                 vehicle: VehicleConfig::default(),
+                scenario: ScenarioConfig::default(),
                 mecanum: MecanumConfig::default(),
                 projectile: ProjectileConfig {
                     lifetime: 5.0,
@@ -486,6 +608,79 @@ fn config_hot_reload(
                     warn!("Failed to reload config: {}", e);
                 }
             }
+        }
+    }
+}
+
+#[cfg(test)]
+mod scenario_tests {
+    use super::*;
+
+    #[test]
+    fn omitted_scenario_keeps_original_interactive_scene() {
+        let config: SimulationConfig = toml::from_str(include_str!("../config.toml")).unwrap();
+        assert_eq!(config.scenario.mode, None);
+        assert_eq!(config.scenario.spin_speed_rad_s, None);
+    }
+
+    #[test]
+    fn custom_speeds_and_mode_deserialize() {
+        let c: ScenarioConfig = toml::from_str("mode = 'spin'\nspin_speed_rad_s = -3.0").unwrap();
+        assert_eq!(c.mode, Some(ScenarioMode::Spin));
+        assert_eq!(c.spin_speed_rad_s, Some(-3.0));
+        c.validate().unwrap();
+        assert!(toml::from_str::<ScenarioConfig>("mode = 'typo'").is_err());
+    }
+
+    #[test]
+    fn motion_reference_respects_delay_amplitude_and_peak_speed() {
+        let c = ScenarioConfig {
+            move_amplitude_m: 2.0,
+            move_peak_speed_mps: 1.0,
+            target_lateral_m: 0.3,
+            ..Default::default()
+        };
+        assert_eq!(c.move_reference(3.0), (0.3, 0.0));
+        let (x, v) = c.move_reference(4.0 + std::f32::consts::PI);
+        assert!((x - 2.3).abs() < 1e-5);
+        assert!(v.abs() < 1e-5);
+        let (_, v) = c.move_reference(4.0 + 4.0 * std::f32::consts::PI);
+        assert!((v - 1.0).abs() < 1e-5);
+    }
+
+    #[test]
+    fn zero_amplitude_and_zero_speed_are_stationary() {
+        for c in [
+            ScenarioConfig {
+                move_amplitude_m: 0.0,
+                ..Default::default()
+            },
+            ScenarioConfig {
+                move_peak_speed_mps: 0.0,
+                ..Default::default()
+            },
+        ] {
+            assert_eq!(c.move_reference(10.0), (c.target_lateral_m, 0.0));
+        }
+    }
+
+    #[test]
+    fn invalid_motion_parameters_are_rejected() {
+        for c in [
+            ScenarioConfig {
+                move_amplitude_m: -1.0,
+                ..Default::default()
+            },
+            ScenarioConfig {
+                target_distance_m: 0.0,
+                ..Default::default()
+            },
+            ScenarioConfig {
+                spin_speed_rad_s: Some(f32::NAN),
+                ..Default::default()
+            },
+        ] {
+            assert!(c.validate().is_err());
         }
     }
 }

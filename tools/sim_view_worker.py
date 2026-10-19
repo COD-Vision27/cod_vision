@@ -67,7 +67,7 @@ def wait_port(port, process):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--view', choices=['local', 'remote'], required=True)
-    parser.add_argument('--scenario', choices=['static', 'spin', 'move'], default='static')
+    parser.add_argument('--scenario', choices=['static', 'spin', 'move'])
     parser.add_argument('--base', choices=PROFILES, default='standard3')
     parser.add_argument('--aim-config')
     parser.add_argument('--sim-config')
@@ -84,7 +84,8 @@ def main():
         os.execvp('xvfb-run', ['xvfb-run', '-a', '-s', '-screen 0 1280x800x24 -nolisten tcp',
                              sys.executable, '-u', str(Path(__file__).resolve()), *sys.argv[1:], '--inside-display'])
     env = desktop_environment() if args.view == 'remote' else dict(os.environ)
-    env['DAEDALUS_SP_SCENARIO'] = args.scenario
+    if args.scenario:
+        env['DAEDALUS_SP_SCENARIO'] = args.scenario
     aim_config = resolve_config(args.aim_config, CONFIGS / f'{args.base}.yaml', '.yaml')
     sim_config = resolve_config(args.sim_config, CONFIGS / 'simulator.toml', '.toml')
     env['SP_AIM_CONFIG'] = str(aim_config)

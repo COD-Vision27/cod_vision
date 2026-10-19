@@ -2,11 +2,15 @@
 import importlib.util
 from pathlib import Path
 import tempfile
+import contextlib
+import io
 import unittest
 from unittest.mock import patch
+from unittest.mock import Mock
 import yaml
 import remote_worker
 import sim_configs
+import sim_view
 
 spec = importlib.util.spec_from_file_location('derive_configs',
     sim_configs.ROOT / 'sp_vision_ros/scripts/derive_config.py')
@@ -15,6 +19,22 @@ spec.loader.exec_module(derive)
 
 
 class ConfigWorkflowTests(unittest.TestCase):
+    def test_view_uses_config_mode_unless_explicitly_overridden(self):
+        for override in [[], ['--scenario', 'move']]:
+            worker = Mock()
+            worker.stdout = [sim_view.MARKER + '{"display": ":1"}\n']
+            worker.wait.return_value = 0
+            worker.poll.return_value = 0
+            with patch('sys.argv', ['sim_view.py', '--view', 'remote', *override]), \
+                 patch.object(sim_view.subprocess, 'Popen', return_value=worker) as spawn, \
+                 contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(sim_view.main(), 0)
+            argv = spawn.call_args.args[0]
+            if override:
+                self.assertEqual(argv[argv.index('--scenario') + 1], 'move')
+            else:
+                self.assertNotIn('--scenario', argv)
+
     def test_build_and_test_do_not_regenerate_tuned_inputs(self):
         for action in ['build', 'test', 'closed-loop', 'aim', 'sim']:
             commands = remote_worker.commands(dict(action=action, python='python3', jobs=2,
