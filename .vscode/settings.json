@@ -1,3 +1,3 @@
 {
-    "cmake.sourceDirectory": "/home/kendas/桌面/zimiao/sp_vision_25"
+  "cmake.sourceDirectory": "${workspaceFolder}/sp_vision_ros"
 }

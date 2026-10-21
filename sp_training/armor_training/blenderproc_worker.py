@@ -18,7 +18,7 @@ def main():
     p=argparse.ArgumentParser();p.add_argument("--config",required=True);a=p.parse_args()
     config=Path(a.config).resolve();root=config.parent.parent;c=json.loads(config.read_text())
     if os.environ.get("SP_ARMOR_EXECUTION_ROLE")!=c["execution"]["required_role"]:
-        raise RuntimeError("render job is restricted to the designated server process")
+        raise RuntimeError("render job is restricted to the explicitly enabled local training process")
     if c["execution"]["allow_local_fallback"] is not False:raise ValueError("local render fallback must stay disabled")
     if not c["assets"]["scene_blend"]:raise ValueError("awaiting future 2027 scene/model assets")
     scene_file=(root/c["assets"]["scene_blend"]).resolve()
@@ -39,11 +39,11 @@ def main():
     scene.render.engine="CYCLES"
     bproc.renderer.set_max_amount_of_samples(c["sampling"]["samples"])
     device=c["execution"]["render_device"]
-    if device not in ("OPTIX","CUDA","HIP"):raise ValueError("server GPU render backend must be explicit")
+    if device not in ("OPTIX","CUDA","HIP"):raise ValueError("local GPU render backend must be explicit")
     # Strict device selection: no silent CPU fallback when a worker lacks the selected GPU backend.
     prefs=bpy.context.preferences.addons['cycles'].preferences;prefs.compute_device_type=device;prefs.get_devices()
     devices=[d for d in prefs.devices if d.type==device]
-    if not devices:raise RuntimeError(f"server has no available {device} render device")
+    if not devices:raise RuntimeError(f"local machine has no available {device} render device")
     for d in prefs.devices:d.use=d.type==device
     scene.cycles.device='GPU'
     raw=(root/c["artifacts"]["raw"]).resolve();raw.mkdir(parents=True,exist_ok=True)

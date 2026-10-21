@@ -158,7 +158,7 @@ UART 下 `bullet_speed=0`、`mode=idle`、`shoot_mode=left_shoot`、`ft_angle=0`
 所有命令在项目根目录执行，模型、配置、数据存在相对路径依赖：
 
 ```bash
-cd /home/kendas/桌面/zimiao/sp_vision_25
+cd /path/to/project/sp_vision_25
 cmake -S . -B build
 cmake --build build --target serial_imu_test cboard_test standard capture -j2
 ctest --test-dir build -R serial_imu_protocol --output-on-failure

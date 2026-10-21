@@ -2,11 +2,11 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "远程：环境检查",
+      "label": "本地：环境检查",
       "type": "process",
       "command": "python3",
       "args": [
-        "tools/remote_run.py",
+        "tools/local_run.py",
         "doctor"
       ],
       "options": {
@@ -15,78 +15,59 @@
       "problemMatcher": []
     },
     {
-      "label": "远程：轻量检查",
+      "label": "本地：轻量检查",
       "type": "process",
       "command": "python3",
       "args": [
-        "tools/remote_run.py",
-        "--python",
-        "/home/wuxian/miniconda3/envs/YOLO/bin/python",
+        "tools/local_run.py",
         "check"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "group": {
-        "kind": "test",
-        "isDefault": false
-      },
       "problemMatcher": []
     },
     {
-      "label": "远程：完整测试",
+      "label": "本地：构建",
       "type": "process",
       "command": "python3",
       "args": [
-        "tools/remote_run.py",
-        "test"
-      ],
-      "options": {
-        "cwd": "${workspaceFolder}"
-      },
-      "group": {
-        "kind": "test",
-        "isDefault": true
-      },
-      "problemMatcher": []
-    },
-    {
-      "label": "远程：构建",
-      "type": "process",
-      "command": "python3",
-      "args": [
-        "tools/remote_run.py",
+        "tools/local_run.py",
         "build"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
       },
+      "problemMatcher": [],
       "group": {
         "kind": "build",
         "isDefault": true
-      },
-      "problemMatcher": []
+      }
     },
     {
-      "label": "远程：本地查看仿真窗口",
+      "label": "本地：完整测试",
       "type": "process",
       "command": "python3",
       "args": [
-        "tools/sim_view.py"
+        "tools/local_run.py",
+        "test"
       ],
       "options": {
         "cwd": "${workspaceFolder}"
       },
-      "problemMatcher": []
+      "problemMatcher": [],
+      "group": {
+        "kind": "test",
+        "isDefault": true
+      }
     },
     {
-      "label": "远程：目标机显示仿真窗口",
+      "label": "本地：仿真窗口",
       "type": "process",
       "command": "python3",
       "args": [
-        "tools/sim_view.py",
-        "--view",
-        "remote"
+        "tools/local_run.py",
+        "sim"
       ],
       "options": {
         "cwd": "${workspaceFolder}"

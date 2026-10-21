@@ -11,7 +11,6 @@ from unittest.mock import patch, Mock
 
 import aim_lab
 import host_preflight
-import remote_worker
 
 
 class ValidationTests(unittest.TestCase):
@@ -38,15 +37,6 @@ class ValidationTests(unittest.TestCase):
         result=aim_lab.performance_summary({},[],[],'OpenGL - Using Device: Mesa - llvmpipe')
         self.assertTrue(result['software_renderer'])
 
-    def test_local_run_requires_explicit_opt_in(self):
-        with tempfile.TemporaryDirectory() as folder:
-            with patch.object(aim_lab,'ROOT',Path(folder)), patch.dict('os.environ',{},clear=True):
-                with patch.object(sys,'argv',['aim_lab.py']):
-                    with self.assertRaisesRegex(RuntimeError,'pass --local'):
-                        aim_lab.main()
-                with patch.object(sys,'argv',['aim_lab.py','--local']):
-                    with self.assertRaisesRegex(RuntimeError,'requires DISPLAY'):
-                        aim_lab.main()
 
     def test_interactive_duration_and_frame_cap(self):
         defaults=aim_lab.parse_args([])
@@ -88,18 +78,10 @@ class ValidationTests(unittest.TestCase):
         result=aim_lab.performance_summary({'wall_seconds':6},iter([]),packets,'')
         self.assertEqual(result['simulation_seconds_per_wall_second'],.5)
 
-    def test_validate_prepares_before_build_and_real_graphics(self):
-        steps=remote_worker.commands(dict(action='validate',python='python3',env={},jobs=2,
-            skip_build=False,scenario='static',seconds=15,command=[]))
-        self.assertEqual(steps[0],['python3','tools/host_preflight.py'])
-        self.assertEqual(steps[1],['python3','rm_aim_sim/tools/setup_godot.py'])
-        self.assertEqual(steps[3],['bash','sp_vision_sim/build.sh'])
-        self.assertTrue(any('tools/aim_lab.py' in command for command in steps))
-        self.assertFalse(any('cargo' in argument for command in steps for argument in command))
 
     def test_preflight_lists_missing_dependency_without_installing(self):
         with tempfile.TemporaryDirectory() as folder:
-            root=Path(folder);(root/'.zimiao-remote-worker').touch()
+            root=Path(folder)
             def cmake_probe(argv,**kwargs):
                 source=Path(argv[argv.index('-S')+1])
                 script=(source/'CMakeLists.txt').read_text()
@@ -117,7 +99,7 @@ class ValidationTests(unittest.TestCase):
                  patch.object(host_preflight.subprocess,'run',side_effect=cmake_probe), \
                  contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(host_preflight.main(),2)
-            report=json.loads((root/'sp_vision_ros/artifacts/host-preflight.json').read_text())
+            report=json.loads((root/'artifacts/local-preflight.json').read_text())
             self.assertEqual(report['missing'],['OpenVINO'])
             self.assertEqual(report['status'],'FAIL')
 

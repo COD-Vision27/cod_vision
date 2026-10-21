@@ -1,6 +1,5 @@
 # 历史规则参考资料
 
-这些文件从 Windows 桌面 `Users/kendas/OneDrive/Desktop/zimiao` 移入本目录。原始文件名与版本号保留，移动前后已逐文件核对 SHA-256；来源、大小和哈希见 `迁移清单.json`。
 
 ## 适用范围
 

@@ -2,8 +2,8 @@
   "schema": "sp-armor-pipeline-v1",
   "phase": "building",
   "execution": {
-    "location": "server",
-    "required_role": "server",
+    "location": "local",
+    "required_role": "local",
     "allow_local_fallback": false,
     "render_device": "OPTIX",
     "train_device": "cuda:0"

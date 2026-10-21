@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Godot + real SP pixels closed loop: remote_run.py, or explicit --local."""
+"""Run Godot and the SP image-processing closed loop on this computer."""
 import argparse
 import hashlib
 import gzip
@@ -58,7 +58,7 @@ def performance_summary(report, vision, packets, engine_log):
 
 def parse_args(argv=None):
     p = argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--local', action='store_true', help='Explicitly run on this computer instead of the SSH worker')
+    p.add_argument('--local', action='store_true', help='Compatibility option; execution is always local')
     p.add_argument('--scenario', choices=['static','spin','move'], default='static')
     p.add_argument('--seconds', type=float, default=0, help='Run duration in seconds; 0 or omitted runs until stopped')
     p.add_argument('--max-fps', type=int, default=0, help='Maximum render FPS; 0 or omitted means uncapped')
@@ -102,11 +102,9 @@ def jsonl_records(path):
 
 def main():
     args=parse_args()
-    if not args.local and not (ROOT/'.zimiao-remote-worker').is_file():
-        raise RuntimeError('Use tools/remote_run.py closed-loop, or pass --local to explicitly run on this computer.')
     if not os.environ.get('DISPLAY'):
         raise RuntimeError('Real camera requires DISPLAY. Use a graphical desktop or xvfb-run; headless has no pixels.')
-    out = ROOT/('artifacts/local-aim' if args.local else 'sp_vision_ros/artifacts')
+    out = ROOT/'artifacts/local-aim'
     out.mkdir(parents=True,exist_ok=True)
     name = Path(args.output).name+'-'+args.scenario
     prefix = out/name
@@ -137,7 +135,7 @@ def main():
         'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),
         'engine_sha256':hashlib.sha256(engine.read_bytes()).hexdigest(),
         'upstream':(ROOT/'rm_aim_sim/UPSTREAM.md').read_text(),
-        'scenario':args.scenario,'seconds':args.seconds,'max_fps':args.max_fps,'execution':'local' if args.local else 'remote',
+        'scenario':args.scenario,'seconds':args.seconds,'max_fps':args.max_fps,'execution':'local',
     }
     Path(str(prefix)+'-provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
     # A cancelled startup must not reuse the previous run's score or screenshot.

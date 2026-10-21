@@ -1,0 +1,11 @@
+{
+  "reason": "Public local-only release: replace personal paths with portable examples; no algorithm changes.",
+  "base_manifest_sha256": "10032e1f9e6261db13e7275fa84b6e6ce7d9c4704f341eb9ff76fc6a782d9e88",
+  "files": {
+    "sp_vision_25/.vscode/c_cpp_properties.json": "61e0ac15e9f024016833e37e2400e007acb13ef13e3e14ab169f8579cf336329",
+    "sp_vision_25/DEVELOPMENT_GUIDE.md": "553e81a82d7b8b6a9731136e92182e39087ee8efecdb4a94b67ca34841a5afaa",
+    "sp_vision_25/VERSION_COMPARISON_AND_USAGE.md": "200888e8446340e325d9a133e556b11e65036c96706335a7a4c68651f718780c",
+    "sp_vision_25/readme.md": "75bc76fb671ed1b1b45c901783880670dc8f000e3285390e194ab68e630001f4",
+    "sp_vision_25/tools/check_tuned_sources.py": "c3cacec7de32d80ca87215c2b48834ea1d3725de71222be27fffe10a5f99649a"
+  }
+}

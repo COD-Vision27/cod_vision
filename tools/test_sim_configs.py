@@ -8,9 +8,8 @@ import unittest
 from unittest.mock import patch
 from unittest.mock import Mock
 import yaml
-import remote_worker
+import local_run
 import sim_configs
-import sim_view
 
 spec = importlib.util.spec_from_file_location('derive_configs',
     sim_configs.ROOT / 'sp_vision_ros/scripts/derive_config.py')
@@ -19,38 +18,11 @@ spec.loader.exec_module(derive)
 
 
 class ConfigWorkflowTests(unittest.TestCase):
-    def test_view_uses_config_mode_unless_explicitly_overridden(self):
-        for override in [[], ['--scenario', 'move']]:
-            worker = Mock()
-            worker.stdout = [sim_view.MARKER + '{"display": ":1"}\n']
-            worker.wait.return_value = 0
-            worker.poll.return_value = 0
-            with patch('sys.argv', ['sim_view.py', '--view', 'remote', *override]), \
-                 patch.object(sim_view.subprocess, 'Popen', return_value=worker) as spawn, \
-                 contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(sim_view.main(), 0)
-            argv = spawn.call_args.args[0]
-            if override:
-                self.assertEqual(argv[argv.index('--scenario') + 1], 'move')
-            else:
-                self.assertNotIn('--scenario', argv)
 
-    def test_view_forwards_unlimited_duration_and_custom_frame_cap(self):
-        worker=Mock();worker.stdout=[sim_view.MARKER+'{"display": ":1"}\n']
-        worker.wait.return_value=0;worker.poll.return_value=0
-        for options,seconds,fps in [([],0,0),(['--seconds','30','--max-fps','144'],30,144)]:
-            with patch('sys.argv',['sim_view.py','--view','remote',*options]), \
-                 patch.object(sim_view.subprocess,'Popen',return_value=worker) as spawn, \
-                 contextlib.redirect_stdout(io.StringIO()):
-                self.assertEqual(sim_view.main(),0)
-            argv=spawn.call_args.args[0]
-            self.assertEqual(float(argv[argv.index('--seconds')+1]),seconds)
-            self.assertEqual(int(argv[argv.index('--max-fps')+1]),fps)
 
     def test_build_and_test_do_not_regenerate_tuned_inputs(self):
-        for action in ['build', 'test', 'closed-loop', 'aim', 'sim']:
-            commands = remote_worker.commands(dict(action=action, python='python3', jobs=2,
-                env={}, skip_build=False, scenario='static', seconds=25, command=[]))
+        for action in ['build', 'test', 'closed-loop', 'sim']:
+            commands = local_run.commands(action, scenario='static', seconds=25)
             self.assertFalse(any('derive_config.py' in arg for argv in commands for arg in argv))
 
     def test_generate_refuses_existing_tuning_and_preserves_toml(self):

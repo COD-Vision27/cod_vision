@@ -145,7 +145,7 @@ IMU型号：使用C板内置BMI088作为IMU\
         ```
         [Desktop Entry]
         Type=Application
-        Exec=/home/rm/Desktop/sp_vision_25/autostart.sh
+        Exec=/path/to/sp_vision_25/autostart.sh
         Name=sp_vision
         ```
         注: [Exec](https://specifications.freedesktop.org/desktop-entry-spec/desktop-entry-spec-latest.html)必须为绝对路径.

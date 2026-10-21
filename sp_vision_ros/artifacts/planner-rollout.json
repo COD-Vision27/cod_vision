@@ -1,9 +1,0 @@
-{
-  "checksum": 853.4851289279392,
-  "legacy_rollout_ms": 33.03433750000001,
-  "max_aim_error_rad": 4.059794072133915e-15,
-  "max_geometry_error": 2.84534046710453e-14,
-  "readonly_rollout_ms": 3.6072990000000003,
-  "samples": 3672,
-  "speedup": 9.157637750571828
-}

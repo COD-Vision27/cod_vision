@@ -1,4 +1,4 @@
-"""Building-stage server DAG. Planning is local-safe; execution never falls back locally."""
+"""Building-stage local DAG. Planning is local-safe; execution stays on the current machine."""
 import json
 import os
 import subprocess
@@ -12,10 +12,10 @@ def load_plan(config):
     execution=c["execution"]
     if c["training"].get("initialization")!="project_ir_weights":
         raise ValueError("only project_ir_weights initialization is currently wired; alternative training initialization is a building-stage task")
-    if execution["location"]!="server" or execution["allow_local_fallback"] is not False:
-        raise ValueError("rendering/training are server-only")
+    if execution["location"]!="local" or execution["allow_local_fallback"] is not False:
+        raise ValueError("rendering/training run on the local machine")
     if execution["train_device"]=="cpu" or execution["render_device"]=="CPU":
-        raise ValueError("production pipeline requires configured server GPU backends")
+        raise ValueError("production pipeline requires configured local GPU backends")
     if c["sampling"]["chunk_size"]<1 or c["sampling"]["views_per_scene"]<1 or c["sampling"]["scenes"]<1:
         raise ValueError("invalid sampling counts")
     def path(value):
@@ -43,17 +43,17 @@ def load_plan(config):
         {"id":"train","command":train,"produces":"project-compatible model checkpoint"},
         {"id":"export","command":[sys.executable,"-m","armor_training","export","--checkpoint",str(Path(run)/"best.pt"),"--output",export,"--base-model",path(c["training"]["base_model"])],"produces":"ONNX/OpenVINO with unchanged output contract"}
     ]
-    return {"phase":c["phase"],"execution":"server_only","ready_to_execute":not reasons,"waiting_for":reasons,"stages":stages},root,c
+    return {"phase":c["phase"],"execution":"local_only","ready_to_execute":not reasons,"waiting_for":reasons,"stages":stages},root,c
 
 
 def run_pipeline(config, execute=False):
     plan,root,c=load_plan(config)
     if not execute: return plan
     if os.environ.get("SP_ARMOR_EXECUTION_ROLE")!=c["execution"]["required_role"]:
-        raise RuntimeError("execution is restricted to the designated server process; no local fallback")
+        raise RuntimeError("execution is restricted to the explicitly enabled local training process")
     if plan["waiting_for"]: raise RuntimeError("pipeline awaits real assets: "+"; ".join(plan["waiting_for"]))
     env=dict(os.environ,PYTHONPATH=str(root))
     for stage in plan["stages"]:
         print(json.dumps({"stage":stage["id"],"state":"starting"}),flush=True)
         subprocess.run(stage["command"],cwd=root,env=env,check=True)
-    return {"phase":"server_job_finished","stages":[s["id"] for s in plan["stages"]]}
+    return {"phase":"local_job_finished","stages":[s["id"] for s in plan["stages"]]}

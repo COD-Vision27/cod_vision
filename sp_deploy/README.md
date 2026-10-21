@@ -2,7 +2,7 @@
 
 新增工具只读复用原 SP 的 YOLO、Solver、Tracker/EKF、Planner/TinyMPC 和相机/Gimbal 驱动，不改写 `sp_vision_25`。实机运行器在构建目录生成 IO 副本，仅增加线程安全的最新接收姿态读取接口，历史队列仍供图像时间戳配对使用；原源文件不变。当前已适配该工作树的海康/迈德威视相机与 UART44 电控；USB 通用相机和 CAN 不是当前运行器的接口。相机 SDK 的完整驱动、设备权限及真实采集仍须在接入相应硬件后验证。
 
-本机只编辑和调度。构建、运行与实机采集应在设备所在电脑进行；借用目标机为 `wuxian@192.168.1.102`。目标机已经配置 Ubuntu 24.04 / OpenVINO 2024.6.0，实机运行器不需要 ROS。
+在相机与电控实际连接的本机执行构建、采集、标定与部署；需要本机 OpenVINO 与设备 SDK 开发依赖。
 
 ## 从采集到部署
 
@@ -42,7 +42,7 @@ python3 sp_deploy/deploy.py rollback --prefix /path/to/sp-runtime \
 
 `deploy` 不启动机器人，不自动改变系统服务或电控固件。实际开火测试按 [实机实测文档](docs/实机实测流程.md)逐级进行。原 `standard_mpc` 直接使用 Planner 的 fire，不能靠 `auto_fire: false` 保证该程序不开火；本工具运行器以命令行权限决定输出控制/开火，并增加 250 ms 视觉状态期限、200 ms 最新 IMU 接收期限及基于独立最新姿态的反馈误差检查。
 
-远程构建：`python3 tools/remote_run.py run -- python3 sp_deploy/deploy.py build`。单作业采集、部署或启动时同样通过 `run -- python3 sp_deploy/deploy.py ...` 逐个传参；这些命令只应在相机和电控实际连接的主机使用。长期实机启动会占用该调度工作区锁。
+本机构建：`python3 sp_deploy/deploy.py build`。其余子命令同样在实际连接相机和电控的本机执行。
 
 ## 标定质量与坐标约定
 

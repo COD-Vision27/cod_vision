@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Check a new Linux worker before engine download/build. No package installation."""
+"""Check local Linux build prerequisites without installing packages."""
 import json
 import os
 from pathlib import Path
@@ -13,12 +13,10 @@ PACKAGES = ('OpenCV', 'Eigen3', 'fmt', 'spdlog', 'yaml-cpp', 'OpenVINO', 'nlohma
 
 
 def main():
-    if not (ROOT/'.zimiao-remote-worker').is_file():
-        raise SystemExit('Use tools/remote_run.py validate; this preflight runs on the SSH worker.')
     missing=[]
     if platform.system()!='Linux' or platform.machine() not in ('x86_64','AMD64'):
         missing.append('Linux x86_64 (current engine bootstrap platform)')
-    commands={name:shutil.which(name) for name in ('python3','rsync','cmake','ctest','c++','make')}
+    commands={name:shutil.which(name) for name in ('python3','cmake','ctest','c++','make')}
     missing += [name for name,path in commands.items() if path is None]
     if not os.environ.get('DISPLAY') and not shutil.which('xvfb-run'):
         missing.append('DISPLAY or xvfb-run (real camera capture needs graphical rendering)')
@@ -56,12 +54,12 @@ def main():
     report['missing']=missing
     report['status']='FAIL' if missing else 'PASS'
     report['note']='PASS checks prerequisites only; Vulkan device and real pixels are verified by the graphical closed loop.'
-    out=ROOT/'sp_vision_ros/artifacts/host-preflight.json'
+    out=ROOT/'artifacts/local-preflight.json'
     out.parent.mkdir(parents=True,exist_ok=True)
     out.write_text(json.dumps(report,indent=2)+'\n')
     print(json.dumps(report,indent=2),flush=True)
     if missing:
-        print('Prepare the listed dependencies, then rerun validate. No packages were installed; no local fallback.',flush=True)
+        print('Prepare the listed dependencies, then rerun doctor. No packages were installed.',flush=True)
     return 2 if missing else 0
 
 

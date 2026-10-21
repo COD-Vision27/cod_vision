@@ -12,7 +12,7 @@ if not (ROOT/"assets/base_model/yolov5.xml").is_file():
 def main(argv=None):
     p=argparse.ArgumentParser(description="SP armor synthetic data / exact-model fine-tuning")
     sub=p.add_subparsers(dest="command",required=True)
-    q=sub.add_parser("pipeline",help="plan the building-stage server pipeline; never run work locally")
+    q=sub.add_parser("pipeline",help="plan the local building-stage pipeline")
     q.add_argument("--config",default=str(ROOT/"configs/pipeline.json"));q.add_argument("--execute",action="store_true")
     d=sub.add_parser("doctor"); d.add_argument("--output")
     g=sub.add_parser("generate"); g.add_argument("--asset",default=str(ROOT/"configs/placeholder.json")); g.add_argument("--output",required=True)

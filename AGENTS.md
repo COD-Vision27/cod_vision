@@ -1,11 +1,12 @@
-# 工作区运行约定
+# 工作区约定
 
-本电脑性能有限。构建、测试与仿真优先通过 SSH 别名 `wuxian-remote` 调度到原 RTX 4060 目标机。该别名经 `ubuntu@111.229.26.21` 的反向 SSH 隧道（服务器 loopback 2222）中转，配置见 `~/.ssh/config`；旧局域网地址为 `192.168.1.102`。计算仍在目标机执行，中转服务器只转发连接：
+公开版本仅提供本地运行入口。不得提交私人主机地址、账号、SSH 配置、个人绝对路径、硬件识别信息或未经审查的运行日志。
 
 ```bash
-python3 tools/remote_run.py doctor
-python3 tools/remote_run.py check
-python3 tools/remote_run.py test
+python3 tools/local_run.py doctor
+python3 tools/local_run.py check
+python3 tools/local_run.py build
+python3 tools/local_run.py test
 ```
 
-详细参数和环境要求见 `docs/remote-testing.md`。若连接、认证或远端依赖失败，报告具体原因并修复可修复的问题；不要自动在本机执行大型 C++/Rust 构建或 Bevy 仿真。轻量脚本检查和调度程序自身的单元测试可在本机运行。用户明确要求本机运行时遵从用户指令。
+构建与图形仿真可能消耗较多资源；仅在任务需要并具备本地依赖时执行。日常变更优先做适当的轻量测试。构建缓存、运行结果、个人配置和本地工具放在已忽略目录中；不得通过强制暂存将它们加入提交。运行说明见 `docs/local-simulator.md`。

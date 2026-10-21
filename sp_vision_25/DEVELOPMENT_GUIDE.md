@@ -130,7 +130,7 @@ ldd build/camera_test | grep -E 'MvCameraControl|MVSDK|not found'
 所有命令建议在仓库根目录执行，因为 YAML 中的模型路径和程序默认输入都是相对路径：
 
 ```bash
-cd /home/kendas/桌面/zimiao/sp_vision_25
+cd /path/to/project/sp_vision_25
 cmake -S . -B build
 cmake --build build -j"$(nproc)"
 ```
