@@ -105,6 +105,7 @@ class SimAim : public rclcpp::Node {
         f=*ready_; ready_.reset(); }
       auto t=sp_sim::steady_from_ros(stamp_ns(f.image->header.stamp));
       double age=std::chrono::duration<double,std::milli>(Clock::now()-t).count();
+      const auto processing_start = Clock::now();
       try {
         if(age < -20 || age>cfg_["max_frame_age_ms"].as<double>()) throw std::runtime_error("Stale/future image timestamp");
         auto q=validate_frame(f);
@@ -123,7 +124,8 @@ class SimAim : public rclcpp::Node {
         std_msgs::msg::String report;
         report.data=nlohmann::json{{"event","vision"},{"stamp_ns",stamp_ns(im.header.stamp)},
           {"frames",++frames_},{"armors",armors.size()},{"tracker",tracker_->state()},
-          {"age_ms",age},{"has_target",!targets.empty()}}.dump();
+          {"age_ms",age},{"processing_ms",std::chrono::duration<double,std::milli>(Clock::now()-processing_start).count()},
+          {"has_target",!targets.empty()}}.dump();
         diagnostics_->publish(report);
       } catch(const std::exception &e) {
         {std::lock_guard<std::mutex> lock(target_mutex_); target_.reset();}
@@ -137,11 +139,15 @@ class SimAim : public rclcpp::Node {
       if(std::chrono::duration<double,std::milli>(Clock::now()-last_update_).count()<cfg_["target_timeout_ms"].as<double>() &&
          std::chrono::duration<double,std::milli>(Clock::now()-last_frame_).count()<cfg_["max_frame_age_ms"].as<double>()) target=target_;
       actual=actual_yaw_pitch_; }
+    // The trajectory is evaluated now, before MPC computation and publication.
+    // Receivers advance it from this epoch using the message age.
+    const auto plan_stamp = now();
+    const auto plan_start = Clock::now();
     auto_aim::Plan plan{};
     try {plan=planner_->plan(target,cfg_["sim_bullet_speed"].as<double>());}
     catch(const std::exception &e) {RCLCPP_WARN(get_logger(),"Planner failed: %s",e.what());}
     rm_interfaces::msg::SpGimbalPlan out;
-    out.header.stamp=now(); out.header.frame_id="map";
+    out.header.stamp=plan_stamp; out.header.frame_id="map";
     out.control=plan.control && sp_sim::finite_plan(plan);
     // This pose belongs to the delayed camera frame and is diagnostic only.
     // The simulator checks the actual firing axis at command execution time.
@@ -154,7 +160,8 @@ class SimAim : public rclcpp::Node {
     std_msgs::msg::String report;
     report.data=nlohmann::json{{"event","plan"},{"control",out.control},{"fire",out.fire},
       {"yaw",out.yaw},{"pitch",out.pitch},{"yaw_vel",out.yaw_vel},{"pitch_vel",out.pitch_vel},
-      {"yaw_acc",out.yaw_acc},{"pitch_acc",out.pitch_acc},{"feedback_error",feedback_error}}.dump();
+      {"yaw_acc",out.yaw_acc},{"pitch_acc",out.pitch_acc},{"feedback_error",feedback_error},
+      {"plan_ms",std::chrono::duration<double,std::milli>(Clock::now()-plan_start).count()}}.dump();
     diagnostics_->publish(report);
   }
 public:

@@ -1,6 +1,3 @@
 #!/usr/bin/env bash
-set -eo pipefail
-source "$(dirname "$0")/env.sh"
-cd "$SP_SIM_DIR"
-exec ./install/lib/sp_vision_ros/sp_sim_auto_aim --ros-args \
-  -p "config:=${SP_AIM_CONFIG:-$SP_SIM_DIR/configs/standard3.yaml}" "$@"
+echo "Bevy 后端已退役。请使用 python3 tools/sim_view.py 或 python3 tools/remote_run.py closed-loop；见 sp_vision_sim/README.md。" >&2
+exit 1

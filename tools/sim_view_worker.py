@@ -76,18 +76,16 @@ def main():
     args = parser.parse_args()
     if not 10 <= args.seconds <= 86400:
         parser.error('--seconds must be between 10 and 86400')
-    for path in (ROOT / 'bevy_robomaster_simulator/target/debug/daedalus',
-                 ROOT / 'sp_vision_ros/install/lib/sp_vision_ros/sp_sim_auto_aim'):
+    for path in (ROOT / 'rm_aim_sim/.tools/godot',
+                 ROOT / 'sp_vision_ros/build-ros-ascii/sp_sim_ipc'):
         if not path.is_file():
-            raise RuntimeError('Remote build missing. Run: python3 tools/remote_run.py --env CARGO_NET_OFFLINE=true build')
+            raise RuntimeError('Remote build missing. Run: python3 tools/remote_run.py build')
     if args.view == 'local' and not args.inside_display:
         os.execvp('xvfb-run', ['xvfb-run', '-a', '-s', '-screen 0 1280x800x24 -nolisten tcp',
                              sys.executable, '-u', str(Path(__file__).resolve()), *sys.argv[1:], '--inside-display'])
     env = desktop_environment() if args.view == 'remote' else dict(os.environ)
-    if args.scenario:
-        env['DAEDALUS_SP_SCENARIO'] = args.scenario
     aim_config = resolve_config(args.aim_config, CONFIGS / f'{args.base}.yaml', '.yaml')
-    sim_config = resolve_config(args.sim_config, CONFIGS / 'simulator.toml', '.toml')
+    sim_config = resolve_config(args.sim_config, ROOT / 'rm_aim_sim/configs/default.cfg', '.cfg')
     env['SP_AIM_CONFIG'] = str(aim_config)
     env['SP_SIM_CONFIG'] = str(sim_config)
     children = []
@@ -99,7 +97,7 @@ def main():
                 for kind, path in [('aim', aim_config), ('simulator', sim_config)]}
     (log_dir / 'active-configs.json').write_text(json.dumps(selected, indent=2) + '\n')
     (log_dir / 'active-aim.yaml').write_bytes(aim_config.read_bytes())
-    (log_dir / 'active-simulator.toml').write_bytes(sim_config.read_bytes())
+    (log_dir / 'active-simulator.cfg').write_bytes(sim_config.read_bytes())
 
     def start(argv, name):
         handle = (log_dir / name).open('w')
@@ -130,7 +128,9 @@ def main():
                                   'scenario': args.scenario, 'base': args.base,
                                   'configs': selected}), flush=True)
         # Keep simulator/algorithm output in the scheduler log, including the GPU adapter.
-        pair = subprocess.Popen(['bash', 'sp_vision_ros/scripts/run_pair.sh', '--duration-secs', str(args.seconds)],
+        pair = subprocess.Popen([sys.executable, 'tools/aim_lab.py', '--seconds', str(args.seconds),
+                                 '--scenario', args.scenario or 'static', '--aim-config',str(aim_config),
+                                 '--sim-config',str(sim_config)],
                                 cwd=ROOT, env=env, start_new_session=True)
         children.append(pair)
         while pair.poll() is None:

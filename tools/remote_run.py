@@ -18,7 +18,7 @@ EXCLUDES = [
     ".git/", ".ssh/", ".aws/", ".codex/", ".agents/", ".env", ".env.*", ".zimiao-remote-worker",
     "*.pem", "*.key", "__pycache__/", "*.pyc", ".venv/", "venv/",
     "node_modules/", "target/", "build/", "build-*/", "install/",
-    "log/", "logs/", ".runtime/", "/artifacts/",
+    "log/", "logs/", ".runtime/", ".tools/", ".godot/", "captures/", "/artifacts/",
     # The integrity baseline is an input, although it lives in artifacts.
     "/sp_vision_ros/artifacts/***", "imgs/", "dataset/",
 ]
@@ -42,7 +42,7 @@ def parse_args():
                         help="Seconds to wait for another remote job")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without connecting")
     parser.add_argument("action", choices=["doctor", "check", "offline", "build", "test",
-                                          "closed-loop", "sim", "aim", "run"])
+                                          "closed-loop", "sim", "aim", "run", "validate"])
     parser.add_argument("command", nargs=argparse.REMAINDER, help="Arguments for run/sim/aim, after --")
     args = parser.parse_args()
     args.command = args.command[1:] if args.command[:1] == ["--"] else args.command

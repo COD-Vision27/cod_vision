@@ -29,7 +29,11 @@ def quat_matrix(q):
                      [2*(x*z-y*w),2*(y*z+x*w),1-2*(x*x+y*y)]])
 
 def derive(simulator=ROOT/'bevy_robomaster_simulator', sim_config=None):
-    doc = glb(simulator/'assets/vehicle.glb')
+    asset = simulator/'assets/vehicle.glb'
+    # The retired 92 MB asset is replaced by a tiny historical regression fixture.
+    # Active Godot calibration comes from the synchronized frame, never this helper.
+    doc = glb(asset) if asset.is_file() else json.loads(
+        (ROOT/'sp_vision_ros/tests/fixtures/legacy-bevy-camera.json').read_text())
     nodes = {n.get('name'):n for n in doc['nodes']}
     view, shot = nodes['CAM_DIRECTION'], nodes['SHOT_DIRECTION']
     # update_camera_follow ignores CAM_DIRECTION rotation: it uses SHOT_DIRECTION * Rx(pi/2).
@@ -63,7 +67,7 @@ def derive(simulator=ROOT/'bevy_robomaster_simulator', sim_config=None):
                 camera_marker_bevy=view['translation'],muzzle_marker_bevy=shot['translation'],
                 shot_rotation_xyzw=shot['rotation'],gun_basis_bevy=basis.tolist(),
                 origin='muzzle (same launch origin as projectile_launch)',
-                vehicle_sha256=hashlib.sha256((simulator/'assets/vehicle.glb').read_bytes()).hexdigest())
+                vehicle_sha256=hashlib.sha256(asset.read_bytes()).hexdigest() if asset.is_file() else doc['vehicle_sha256'])
 
 def generate(out, base='standard3', *, force=False, sim_config=None):
     out = Path(out)

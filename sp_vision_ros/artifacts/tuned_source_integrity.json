@@ -1,6 +1,7 @@
 {
   "status": "PASS",
-  "files_checked": 234,
+  "files_checked": 239,
+  "planner_revision": "planner-performance-manifest.json",
   "authorized_original_sp_changes": [
     "sp_vision_25/tasks/auto_aim/armor.hpp",
     "sp_vision_25/tasks/auto_aim/planner/planner.cpp",

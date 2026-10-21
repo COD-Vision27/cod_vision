@@ -20,6 +20,11 @@ target_link_libraries(tracker_geometry_probe PRIVATE ${SP_CORE} ${SP_TINY} Eigen
   yaml-cpp fmt::fmt spdlog::spdlog openvino::runtime Threads::Threads)
 target_include_directories(tracker_geometry_probe PRIVATE "${WORKSPACE}/sp_vision_25" ${OpenCV_INCLUDE_DIRS})
 enable_testing()
+add_executable(planner_rollout_test planner_rollout_test.cpp)
+target_include_directories(planner_rollout_test PRIVATE "${WORKSPACE}/sp_vision_25" ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(planner_rollout_test PRIVATE ${SP_CORE} ${SP_TINY} Eigen3::Eigen ${OpenCV_LIBS}
+  yaml-cpp fmt::fmt spdlog::spdlog openvino::runtime Threads::Threads)
+add_test(NAME planner_rollout COMMAND planner_rollout_test "${WORKSPACE}/sp_vision_ros/artifacts/planner-rollout.json")
 add_test(NAME tracker_intervals COMMAND tracker_interval_test "${WORKSPACE}/sp_vision_ros/config/simulator.yaml")
 add_executable(fire_window_test fire_window_test.cpp)
 target_include_directories(fire_window_test PRIVATE "${WORKSPACE}/sp_vision_25" ${OpenCV_INCLUDE_DIRS})
@@ -31,3 +36,9 @@ target_compile_definitions(inference_reuse_test PRIVATE SP_SOURCE_ROOT="${WORKSP
 target_include_directories(inference_reuse_test PRIVATE "${WORKSPACE}/sp_vision_25" ${OpenCV_INCLUDE_DIRS})
 target_link_libraries(inference_reuse_test PRIVATE ${SP_CORE} ${SP_TINY} Eigen3::Eigen ${OpenCV_LIBS}
   yaml-cpp fmt::fmt spdlog::spdlog openvino::runtime Threads::Threads)
+
+add_executable(planner_clock_test planner_clock_test.cpp)
+target_include_directories(planner_clock_test PRIVATE "${WORKSPACE}/sp_vision_25" ${OpenCV_INCLUDE_DIRS})
+target_link_libraries(planner_clock_test PRIVATE ${SP_CORE} ${SP_TINY} Eigen3::Eigen ${OpenCV_LIBS}
+  yaml-cpp fmt::fmt spdlog::spdlog openvino::runtime Threads::Threads)
+add_test(NAME planner_clock COMMAND planner_clock_test "${WORKSPACE}/sp_vision_ros/configs/standard3.yaml")

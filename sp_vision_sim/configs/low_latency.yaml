@@ -1,0 +1,97 @@
+# Godot CPU contention trial: all aim and detector thresholds retain standard3 values.
+enemy_color: "blue"
+# enemy_color: "blue"
+
+#####-----神经网络参数-----#####
+yolo_name: yolov5
+classify_model: assets/tiny_resnet.onnx
+yolo11_model_path: assets/yolo11.xml
+yolov8_model_path: assets/yolov8.xml
+yolov5_model_path: assets/yolov5.xml
+device: CPU
+min_confidence: 0.8
+use_traditional: true
+
+#####-----ROI-----#####
+roi: 
+  x: 420
+  y: 50
+  width: 600
+  height: 600
+
+use_roi: false
+
+#####-----传统方法参数-----#####
+threshold: 150
+max_angle_error: 45 # degree
+min_lightbar_ratio: 1.5
+max_lightbar_ratio: 20
+min_lightbar_length: 8
+min_armor_ratio: 1
+max_armor_ratio: 5
+max_side_ratio: 1.5
+max_rectangular_error: 25 # degree
+
+#####-----tracker参数-----#####
+min_detect_count: 5
+max_temp_lost_count: 15
+outpost_max_temp_lost_count: 75
+# Simulated frames can arrive 100–200 ms apart under render/ROS load.
+# Keep short gaps in the EKF; command/target watchdogs retain their own limits.
+tracker_max_dt: 0.2
+
+#####-----aimer参数-----#####
+yaw_offset: 0
+pitch_offset: 0
+comming_angle: 55 # degree
+leaving_angle: 20 # degree
+decision_speed: 7 # rad/s
+high_speed_delay_time: 0.0
+low_speed_delay_time: 0.0
+
+#####-----shooter参数-----#####
+first_tolerance: 3 # 近距离射击容差，degree
+second_tolerance: 2 # 远距离射击容差，degree
+judge_distance: 2 #距离判断阈值
+auto_fire: true # 是否由自瞄控制射击
+
+camera_name: "hikrobot"
+exposure_ms: 2.5
+gain: 16.9
+vid_pid: "2bdf:0001"
+
+#  1  0  0
+#  0  1  0
+#  0  0  1
+R_gimbal2imubody: [1, 0, 0, 0, 1, 0, 0, 0, 1]
+
+camera_matrix: [1303.675283386667, 0.0, 720.0, 0.0, 1303.675283386667, 540.0, 0.0, 0.0, 1.0]
+distort_coeffs: [0, 0, 0, 0, 0]
+
+R_camera2gimbal: [0.0, 0.0, 1.0, -1.0, 0.0, 0.0, 0.0, -1.0, 0.0]
+t_camera2gimbal: [0.0810681947119743, 0.00018581165932118893, 0.0571475040271317]
+
+# Generated from simulator geometry; model paths use the ROS sp_vision_root parameter.
+fire_thresh: 0.0035
+max_yaw_acc: 50
+Q_yaw: [9e6, 0]
+R_yaw: [1]
+max_pitch_acc: 100
+Q_pitch: [9e6, 0]
+R_pitch: [1]
+sim_width: 1440
+sim_height: 1080
+sim_bullet_speed: 25.0
+image_topic: /image_raw
+camera_info_topic: /camera_info
+frame_tf_topic: /sp_vision/sim/frame_tf
+plan_topic: /sp_vision/sim/plan
+diagnostics_topic: /sp_vision/sim/diagnostics
+plan_period_ms: 10
+max_frame_age_ms: 1000
+target_timeout_ms: 250
+command_timeout_s: 0.25
+allow_fire: true
+
+inference_num_threads: 4
+opencv_threads: 1

@@ -21,10 +21,9 @@ def commands(job):
     tuned_manifest = Path('sp_vision_25/docs/tuning-source-manifest.json')
     integrity = ('sp_vision_25/tools/check_tuned_sources.py' if tuned_manifest.is_file()
                  else 'sp_vision_ros/scripts/check_sp_unchanged.py')
-    checks = [[python, "sp_vision_ros/tests/test_geometry.py"],
-              [python, integrity]]
+    checks = [[python, integrity]]
     # Configuration is a user input. Rebuilding must not overwrite tuning.
-    build = [["bash", "sp_vision_ros/scripts/build.sh"]]
+    build = [["bash", "sp_vision_sim/build.sh"]]
     ros_prefix = "source sp_vision_ros/scripts/env.sh && "
     def ros(argv):
         return ["bash", "-c", ros_prefix + shlex.join(argv)]
@@ -34,7 +33,7 @@ def commands(job):
                 'if [[ -n "${DISPLAY:-}" ]]; then exec "$@"; '
                 'elif command -v xvfb-run >/dev/null; then exec xvfb-run -a "$@"; '
                 'else echo "No DISPLAY or xvfb-run. Supply a valid remote DISPLAY or install xvfb; '
-                'a working Vulkan driver is required." >&2; exit 1; fi',
+                'a working GPU driver is required." >&2; exit 1; fi',
                 "zimiao-display", *argv]
     action = job["action"]
     if action == "check":
@@ -50,19 +49,32 @@ def commands(job):
     if action == "run":
         return [job["command"]]
     if action in {"sim", "aim"}:
-        launch = ["bash", f"sp_vision_ros/scripts/run_{action}.sh"] + job["command"]
         if action == "sim":
-            launch = graphics(launch)
-        return ([] if job["skip_build"] else build) + [launch]
-    steps = [] if job["skip_build"] else build
-    if action == "test":
-        steps += checks + [ros([python, "sp_vision_ros/tests/ros_smoke.py"]),
-                           ["bash", "-c", ros_prefix + "cd bevy_robomaster_simulator && "
-                            "cargo test --no-default-features --features ros2 --bin daedalus -j " + str(job["jobs"])]]
+            return [graphics(["bash", "rm_aim_sim/run.sh"] + job["command"])]
+        return ([] if job["skip_build"] else build) + [graphics([python, "tools/aim_lab.py"] + job["command"])]
+    steps = []
+    if action == "validate":
+        steps += [[python, "tools/host_preflight.py"],
+                  [python, "rm_aim_sim/tools/setup_godot.py"],
+                  ["bash", "rm_aim_sim/run.sh", "--headless", "--editor", "--import", "--quit"]]
+    steps += [] if job["skip_build"] else build
+    if action in {"test", "validate"}:
+        steps += checks + [
+            ["bash", "rm_aim_sim/run.sh", "--headless", "--script", "res://tests/run_tests.gd"],
+            [python, "rm_aim_sim/tests/integration.py", "--godot", str(Path("rm_aim_sim/.tools/godot").resolve())],
+            ["ctest", "--test-dir", "sp_vision_ros/build-ros-ascii", "--output-on-failure"],
+        ]
     scenarios = ["static", "spin", "move"] if job["scenario"] == "all" else [job["scenario"]]
     for scenario in scenarios:
-        steps.append(graphics(ros([python, "sp_vision_ros/tests/closed_loop.py", "--scenario", scenario,
-                                   "--seconds", str(job["seconds"])])))
+        steps.append(graphics([python, "tools/aim_lab.py", "--scenario", scenario,
+                               "--seconds", str(job["seconds"])]))
+    if action in {"test", "validate"}:
+        # Use a real frame from this run, after closed-loop collection, never a stale PASS artifact.
+        sample = "aim-lab-" + scenarios[0] + "-first.png"
+        steps.append(["bash", "-c", shlex.join([
+            "sp_vision_25/build-tuning/inference_reuse_test", "sp_vision_ros/configs/standard3.yaml",
+            "sp_vision_ros/artifacts/" + sample]) +
+            " > sp_vision_ros/artifacts/inference-threads-validation.json"])
     return steps
 
 

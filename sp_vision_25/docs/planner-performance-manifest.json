@@ -1,0 +1,17 @@
+{
+  "schema": "sp_planner_performance_revision_v1",
+  "base_manifest_sha256": "10032e1f9e6261db13e7275fa84b6e6ce7d9c4704f341eb9ff76fc6a782d9e88",
+  "authorization": "2026-10-20 user authorized SP algorithm changes to reduce delay and improve firing alignment",
+  "files": {
+    "sp_vision_25/tasks/auto_aim/target.hpp": "2c84210133f85ac303916f1b4ae54617b9c434efd5187b1becfc24207ddf10b2",
+    "sp_vision_25/tasks/auto_aim/target.cpp": "57696e5623f348b39629f23ec825ee7bf931424639af87b3f90fded14b756550",
+    "sp_vision_25/tasks/auto_aim/planner/planner.hpp": "ee3dbdb4cb1ae2bd9ac117d6807b731d8f544ff05818c5ce846b5bef9aaf7a8f",
+    "sp_vision_25/tasks/auto_aim/planner/planner.cpp": "22dfc7cd7d408244ffdc2c77b9620b70493d4eebbfe4cd437972e5b8d99c07ad",
+    "sp_vision_25/tests/tuning/planner_rollout_test.cpp": "64cf8fad899b4bda3a5cf0cdf155c9ebdf75d9c3642c7adb20c1c40c12fd4711",
+    "sp_vision_25/tests/tuning/CMakeLists.txt": "17f54970711f584fc5171bc0ee0c3d58d46e245c7985b21d132d73b2531f3b95",
+    "sp_vision_25/tools/check_tuned_sources.py": "3a4cf39b68c0c783c8681995111e7a59cdd455454114b4f3cbd85189792e0e59",
+    "sp_vision_25/tests/tuning/planner_clock_test.cpp": "1462fcded261b2a9dfc2bcf263128345a1e8d13a611078a77f98d7f5d6f59be1",
+    "sp_vision_25/tasks/auto_aim/yolos/yolov5.cpp": "7f8d5dd2b05f8a9861911e5d1ea8ad0fd90f1eb0f17d7e06fc5835b466a77c76",
+    "sp_vision_25/tests/tuning/inference_reuse_test.cpp": "f9d20cb8c3aec998e1486c3badc546b33fd4bddbed179e3c312c8cec267dfaad"
+  }
+}

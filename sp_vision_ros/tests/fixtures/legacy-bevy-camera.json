@@ -1,0 +1,39 @@
+{
+  "purpose": "Historical geometry regression only; active Godot adapter reads synchronized camera metadata.",
+  "vehicle_sha256": "1cc0a3cd1ab05bc9822b616271db3afb64d078e56b9bbf452a8acc6d9bad0a6f",
+  "nodes": [
+    {
+      "name": "CAM_DIRECTION",
+      "rotation": [
+        0.7067381739616394,
+        0.022827517241239548,
+        -0.022827517241239548,
+        0.7067382335662842
+      ],
+      "scale": [
+        0.0010000000474974513,
+        0.000999999581836164,
+        0.0010000000474974513
+      ],
+      "translation": [
+        -0.0020168116316199303,
+        0.1963421255350113,
+        -0.0600251629948616
+      ]
+    },
+    {
+      "name": "SHOT_DIRECTION",
+      "rotation": [
+        -0.537299633026123,
+        0,
+        0,
+        0.8433914184570312
+      ],
+      "translation": [
+        -0.0018309999722987413,
+        0.11028800159692764,
+        -0.010703999549150467
+      ]
+    }
+  ]
+}

@@ -1,3 +1,5 @@
+> 2026-10-20：默认仿真已迁移至 Godot + 同机共享内存。当前命令与配置方法见 [新接入说明](../../sp_vision_sim/README.md)。下文 Bevy / ROS / TOML 内容保留为历史记录；新的相机标定由同步帧元数据提供。
+
 # 仿真配置与调参入口
 
 这是 ROS 自瞄仿真实际读取的配置目录，形式与 `sp_vision_25/configs` 一致。修改这里的参数后重新启动即可，不需要重新编译。修改 C++ / Rust 算法或 ROS 消息后才需远程构建。
@@ -51,7 +53,7 @@ python3 tools/remote_run.py run -- bash -c 'source sp_vision_ros/scripts/env.sh 
 
 | 文件 | 用途 | 选择方法 |
 |---|---|---|
-| [standard3.yaml](standard3.yaml) | standard3 派生的仿真基准；保留之前验收配置原文 | 默认，或 `--profile standard3` |
+| [standard3.yaml](standard3.yaml) | standard3 派生的仿真配置；2026-10-20 将短间断容忍设为 0.2 秒，历史参数快照见对应测试产物 | 默认，或 `--profile standard3` |
 | [standard4.yaml](standard4.yaml) | standard4 派生的仿真基准 | `--profile standard4` |
 | [standard3_high_rate.yaml](standard3_high_rate.yaml) | 调优 agent 的仿真候选；从 `sp_vision_25/configs/simulator_high_rate.yaml` 原样复制 | `--profile standard3_high_rate` |
 | [simulator.toml](simulator.toml) | Bevy 场景、渲染、物理、云台执行器 PID、弹丸和相机参数 | 默认；也可 `--sim-config` 指定另一个 TOML |
@@ -59,13 +61,15 @@ python3 tools/remote_run.py run -- bash -c 'source sp_vision_ros/scripts/env.sh 
 
 `--profile` 与原 `--base` 等价；`--aim-config` 显式指定时优先于 profile。两个 YAML 基准未因整理而重新生成，候选参数也没有重新调优。调优候选依赖调优 agent 修改后的 Tracker/Planner 源码；旧二进制不能据此验证新算法。
 
-当前候选相对 standard3 的算法调整为：
+2026-10-15 收录时，候选相对 standard3 的算法调整为：
 
 ```yaml
 tracker_max_dt: 0.2
 fire_yaw_scale: 3.0
 fire_armor_fraction: 0.5
 ```
+
+2026-10-20：默认 standard3 仿真配置也采用 `tracker_max_dt: 0.2`，用于容忍实际 100–200 ms 的图像间断；SP 的缺省值和实机配置仍保留原值，执行端超时不变。Planner 同期增加只读轨迹采样以减少计算开销，数学等价性、在线耗时和闭环结果见 [延迟优化记录](../../sp_vision_25/docs/planner-latency-2026-10-20.md)。历史验收与本次结果按源码/配置摘要分别使用。
 
 其他参数以实际文件为准。该候选是本次收录的独立快照；今后继续在本目录调整，原 SP 下的同名来源不会自动覆盖它。候选说明见[调优 agent 的参数报告](../../sp_vision_25/docs/parameter-tuning.md)。
 

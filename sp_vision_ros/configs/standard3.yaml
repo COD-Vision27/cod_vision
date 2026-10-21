@@ -35,6 +35,9 @@ max_rectangular_error: 25 # degree
 min_detect_count: 5
 max_temp_lost_count: 15
 outpost_max_temp_lost_count: 75
+# Simulated frames can arrive 100–200 ms apart under render/ROS load.
+# Keep short gaps in the EKF; command/target watchdogs retain their own limits.
+tracker_max_dt: 0.2
 
 #####-----aimer参数-----#####
 yaw_offset: 0

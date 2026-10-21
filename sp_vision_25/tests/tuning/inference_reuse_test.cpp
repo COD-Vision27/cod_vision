@@ -20,8 +20,9 @@ int main(int argc, char **argv) try {
     ("sp-inference-reuse-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()) + ".yaml");
   struct Cleanup { std::filesystem::path p; ~Cleanup() { std::filesystem::remove(p); } } cleanup{temp};
   nlohmann::json variants = nlohmann::json::array();
-  for (bool reuse : {false, true}) {
+  for (int threads : {0,4}) for (bool reuse : {false, true}) {
     auto cfg = YAML::Clone(original); cfg["reuse_infer_request"] = reuse;
+    cfg["inference_num_threads"]=threads;
     {std::ofstream f(temp); f << cfg;}
     auto_aim::YOLO detector(temp.string(),false);
     nlohmann::json sequence = nlohmann::json::array();
@@ -40,10 +41,23 @@ int main(int argc, char **argv) try {
     auto start = std::chrono::steady_clock::now();
     for (int i=0;i<40;++i) detector.detect(i%2 ? image : flipped);
     double elapsed = std::chrono::duration<double,std::milli>(std::chrono::steady_clock::now()-start).count()/40.;
-    variants.push_back({{"reuse",reuse},{"mean_detect_ms",elapsed},{"sequence",sequence}});
+    variants.push_back({{"threads",threads},{"reuse",reuse},{"mean_detect_ms",elapsed},{"sequence",sequence}});
   }
-  if (variants[0]["sequence"] != variants[1]["sequence"])
-    throw std::runtime_error("request reuse changed detections");
+  for (int i : {0,2})
+    if (variants[i]["sequence"] != variants[i+1]["sequence"])
+      throw std::runtime_error("request reuse changed detections");
+  for (size_t f=0;f<variants[0]["sequence"].size();++f) {
+    const auto &a=variants[0]["sequence"][f], &b=variants[2]["sequence"][f];
+    if(a.size()!=b.size()) throw std::runtime_error("thread count changed detection count");
+    for(size_t i=0;i<a.size();++i) {
+      if(a[i]["color"]!=b[i]["color"] || a[i]["name"]!=b[i]["name"] ||
+         std::abs(a[i]["confidence"].get<double>()-b[i]["confidence"].get<double>())>1e-4)
+        throw std::runtime_error("thread count changed classification");
+      for(size_t j=0;j<4;++j) for(size_t k=0;k<2;++k)
+        if(std::abs(a[i]["points"][j][k].get<double>()-b[i]["points"][j][k].get<double>())>.05)
+          throw std::runtime_error("thread count changed corner by more than 0.05 pixel");
+    }
+  }
   if (variants[0]["sequence"][0].empty() || !variants[0]["sequence"][1].empty() ||
       !variants[0]["sequence"][3].empty())
     throw std::runtime_error("test requires a detected image and empty blank frames");

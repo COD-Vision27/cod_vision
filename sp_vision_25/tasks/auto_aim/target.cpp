@@ -233,12 +233,25 @@ const tools::ExtendedKalmanFilter & Target::ekf() const { return ekf_; }
 
 std::vector<Eigen::Vector4d> Target::armor_xyza_list() const
 {
-  std::vector<Eigen::Vector4d> _armor_xyza_list;
+  return armor_xyza_list(0.0);
+}
 
+std::vector<Eigen::Vector4d> Target::armor_xyza_list(double dt) const
+{
+  std::vector<Eigen::Vector4d> _armor_xyza_list;
+  _armor_xyza_list.reserve(armor_num_);
+  // The rollout needs four scalar means, not an allocated EKF state copy.
+  const auto &x = ekf_.x;
+  const double cx = x[0] + dt * x[1], cy = x[2] + dt * x[3];
+  const double cz = x[4] + dt * x[5];
+  const double phase = tools::limit_rad(x[6] + dt * x[7]);
   for (int i = 0; i < armor_num_; i++) {
-    auto angle = tools::limit_rad(ekf_.x[6] + i * 2 * CV_PI / armor_num_);
-    Eigen::Vector3d xyz = h_armor_xyz(ekf_.x, i);
-    _armor_xyza_list.push_back({xyz[0], xyz[1], xyz[2], angle});
+    const double angle = tools::limit_rad(phase + i * 2 * CV_PI / armor_num_);
+    const bool alternate = armor_num_ == 4 && (i == 1 || i == 3);
+    const double radius = alternate ? x[8] + x[9] : x[8];
+    const double z = alternate ? cz + x[10] : cz;
+    _armor_xyza_list.push_back({cx - radius * std::cos(angle),
+                                cy - radius * std::sin(angle), z, angle});
   }
   return _armor_xyza_list;
 }

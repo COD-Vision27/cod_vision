@@ -21,10 +21,10 @@ MARKER = 'ZIMIAO_SIM_VIEW '
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--view', choices=['local', 'remote'], default='local')
-    parser.add_argument('--scenario', choices=['static', 'spin', 'move'], help='Override scenario.mode in simulator TOML')
+    parser.add_argument('--scenario', choices=['static', 'spin', 'move'], help='Override scenario.mode in simulator Godot CFG')
     parser.add_argument('--base', '--profile', choices=PROFILES, default='standard3')
     parser.add_argument('--aim-config', help='Custom YAML path relative to the workspace root')
-    parser.add_argument('--sim-config', help='Custom simulator TOML path relative to the workspace root')
+    parser.add_argument('--sim-config', help='Custom simulator Godot CFG path relative to the workspace root')
     parser.add_argument('--seconds', type=float, default=120)
     parser.add_argument('--host', default=os.environ.get('ZIMIAO_REMOTE_HOST', 'wuxian-remote'))
     parser.add_argument('--user', default=os.environ.get('ZIMIAO_REMOTE_USER', 'wuxian'))
@@ -39,7 +39,7 @@ def main():
     if any(not re.fullmatch(r'[a-zA-Z0-9_.-]+', value) for value in (args.host, args.user)):
         parser.error('Invalid host/user')
     aim_config = resolve_config(args.aim_config, CONFIGS / f'{args.base}.yaml', '.yaml')
-    sim_config = resolve_config(args.sim_config, CONFIGS / 'simulator.toml', '.toml')
+    sim_config = resolve_config(args.sim_config, ROOT / 'rm_aim_sim/configs/default.cfg', '.cfg')
     if args.view == 'local':
         with socket.socket() as probe:
             try:

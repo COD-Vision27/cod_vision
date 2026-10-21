@@ -37,6 +37,9 @@ public:
   Eigen::VectorXd ekf_x() const;
   const tools::ExtendedKalmanFilter & ekf() const;
   std::vector<Eigen::Vector4d> armor_xyza_list() const;
+  // Read-only rollout for Planner. Does not propagate covariance or modify the
+  // observation timestamp/filter; Tracker must continue using predict().
+  std::vector<Eigen::Vector4d> armor_xyza_list(double dt) const;
 
   bool diverged() const;
 

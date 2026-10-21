@@ -118,11 +118,13 @@ class SchedulerTests(unittest.TestCase):
         source.mkdir(); self.root.mkdir()
         inputs = ["src/edited.py", "sp_vision_ros/artifacts/sp_vision_baseline.json",
                   "sp_vision_ros/artifacts/old_result.json", ".ssh/id_ed25519",
-                  ".env", "bevy/target/local-binary", "sp_vision_ros/.runtime/local-env"]
+                  ".env", "bevy/target/local-binary", "sp_vision_ros/.runtime/local-env",
+                  "rm_aim_sim/.tools/godot", "rm_aim_sim/.godot/local-cache"]
         for name in inputs:
             file = source / name; file.parent.mkdir(parents=True, exist_ok=True); file.write_text("source")
         protected = ["bevy/target/remote-binary", "sp_vision_ros/.runtime/remote-env",
-                     "artifacts/remote-runs/old.json", ".zimiao-remote-worker"]
+                     "artifacts/remote-runs/old.json", ".zimiao-remote-worker",
+                     "rm_aim_sim/.tools/remote-godot", "rm_aim_sim/.godot/remote-cache"]
         for name in protected:
             file = self.root / name; file.parent.mkdir(parents=True, exist_ok=True); file.write_text("keep")
         (self.root / "deleted-source.py").touch()

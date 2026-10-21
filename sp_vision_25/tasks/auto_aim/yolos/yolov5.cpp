@@ -4,6 +4,7 @@
 #include <yaml-cpp/yaml.h>
 
 #include <filesystem>
+#include <stdexcept>
 
 #include "tools/img_tools.hpp"
 #include "tools/logger.hpp"
@@ -52,8 +53,12 @@ YOLOV5::YOLOV5(const std::string & config_path, bool debug)
 
   // TODO: ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY)
   model = ppp.build();
-  compiled_model_ = core_.compile_model(
-    model, device_, ov::hint::performance_mode(ov::hint::PerformanceMode::LATENCY));
+  ov::AnyMap properties{{ov::hint::performance_mode.name(), ov::hint::PerformanceMode::LATENCY}};
+  const int infer_threads = yaml["inference_num_threads"].as<int>(0);
+  if (infer_threads < 0 || infer_threads > 256)
+    throw std::invalid_argument("inference_num_threads must be in [0,256] (0 = OpenVINO default)");
+  if (infer_threads > 0) properties[ov::inference_num_threads.name()] = infer_threads;
+  compiled_model_ = core_.compile_model(model, device_, properties);
   if (reuse_infer_request_) infer_request_ = compiled_model_.create_infer_request();
 }
 

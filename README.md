@@ -1,45 +1,33 @@
 # RoboMaster 自瞄与仿真工作区
 
-- [全部文档目录](docs/文档目录.md)
-- [版本管理与源码来源](docs/version-control.md)
-- [装甲标注与训练流水线（building，服务器执行）](sp_training/README.md)
-- [可视化远程仿真：本地 / 目标机显示窗口](docs/可视化远程仿真测试.md)
-- [仿真 configs 与调参](sp_vision_ros/configs/README.md)
-- [SP 新版自瞄 ROS2 仿真接入](sp_vision_ros/README.md)
-- [使用报告](sp_vision_ros/docs/使用报告.md)
-- [测试说明](sp_vision_ros/docs/测试说明.md)
-- [SSH 远程运行与测试](docs/remote-testing.md)
-- [仿真回滚与远端原版基线测试](docs/simulator-baseline.md)
-
-已按要求先回滚并完成远端原版基线测试，再完成新版 ROS 自瞄接入。standard3/4 派生配置各三个场景的长时闭环均通过；原 SP 的 230 个文件不变。
-
-在工作区根目录执行，一条命令同时启动目标机仿真与新版自瞄：
-
-```bash
-# 使用目标机 RTX 4060，在本地浏览器看仿真（默认 120 秒）
-python3 tools/sim_view.py
-
-# 使用目标机性能，在目标机已登录桌面看窗口
-python3 tools/sim_view.py --view remote
-
-# standard4 配置 + 横移目标，观察 180 秒
-python3 tools/sim_view.py --base standard4 --scenario move --seconds 180
-
-# 复测调优 agent 的高射频候选
-python3 tools/sim_view.py --profile standard3_high_rate --scenario spin --seconds 180
-```
-
-Ctrl+C 提前停止；本地查看地址会自动打开并在终端打印。入口复用远端构建，源码变更后请先执行远程 `build`。详细操作和验证见[可视化测试文档](docs/可视化远程仿真测试.md)。
-
-本机性能有限，构建和测试默认优先调度到 `wuxian@192.168.1.102`：
+当前仿真使用 [rm_aim_sim / Godot](https://github.com/ForgetWW520/rm_aim_sim)，SP Vision 通过同机共享内存处理真实相机图像。引擎、构建、仿真均在 `wuxian-remote` RTX 4060 主机运行；本机只同步源码、调度和查看。连接通过 `111.229.26.21` 反向 SSH 隧道中转。
 
 ```bash
 python3 tools/remote_run.py doctor
-python3 tools/remote_run.py check
-python3 tools/remote_run.py --env CARGO_NET_OFFLINE=true test
+python3 tools/remote_run.py build
+python3 tools/remote_run.py test
+
+# 本地浏览器查看远端闭环；Ctrl+C 停止
+python3 tools/sim_view.py --scenario spin --seconds 120
+# 在目标机已登录桌面显示
+python3 tools/sim_view.py --view remote --scenario move
+# 只跑测试并收集结果
+python3 tools/remote_run.py --skip-build --scenario static --seconds 25 closed-loop
 ```
 
-`test` 包含远程构建、几何/完整性检查、ROS smoke、Rust 测试与三个闭环场景。远端依赖必须先具备；失败不会自动在本机运行。日志与结果回传到 `artifacts/remote/`。
+测试包含 SP C++ 几何/规划、源码审计、Godot 物理/通信测试以及 static/spin/move 的真实图像闭环。Godot 采用无 ROS 的 `/dev/shm` 通信。SSH 和浏览器画面的网络延迟不进入视觉控制链路。原 Bevy 后端及其构建缓存已退役，归档与替换验证见下方迁移报告。
 
+- [新仿真使用与时序设计](sp_vision_sim/README.md)
+- [替换、空间清理与赛场适用性报告](docs/godot-migration-2026-10-20.md)
+- [SSH 远程运行约定](docs/remote-testing.md)
+- [全部文档目录](docs/文档目录.md)
+- [SP Planner 计算优化](sp_vision_25/docs/planner-latency-2026-10-20.md)
+- [上一轮仿真对齐问题](docs/alignment-fix-2026-10-20.md)
+- [实机标定与部署](sp_deploy/README.md)
+- [实机实测流程](sp_deploy/docs/实机实测流程.md)
+- [训练流水线](sp_training/README.md)
+- [源码与版本管理](docs/version-control.md)
 
-实机部署与标定工具见 [sp_deploy](sp_deploy/README.md)，现场步骤见 [实机实测流程](sp_deploy/docs/实机实测流程.md)。300 秒×6 场景的长时仿真资格测试全部通过；实机相机/电控尚未接入，实际标定和现场命中结果不等同于仿真成绩。
+历史 Bevy 报告只对应各自注明的源码与工况，不能作为新引擎或实机成绩。SP 的通用计算优化可以在实机使用；实际相机、曝光时间戳、电控延迟、弹速和标定仍须实测。
+
+更换主机可执行 `python3 tools/remote_run.py --host sim-new --user YOUR_USER --seconds 15 validate`。首次准备、依赖要求、快速复测和帧率指标见 [新主机验证说明](docs/new-worker-validation.md)。
