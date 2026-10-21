@@ -4,6 +4,7 @@ import io
 import json
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -36,6 +37,16 @@ class ValidationTests(unittest.TestCase):
         self.assertIsNone(result['observation_age_ms_p95'])
         result=aim_lab.performance_summary({},[],[],'OpenGL - Using Device: Mesa - llvmpipe')
         self.assertTrue(result['software_renderer'])
+
+    def test_local_run_requires_explicit_opt_in(self):
+        with tempfile.TemporaryDirectory() as folder:
+            with patch.object(aim_lab,'ROOT',Path(folder)), patch.dict('os.environ',{},clear=True):
+                with patch.object(sys,'argv',['aim_lab.py']):
+                    with self.assertRaisesRegex(RuntimeError,'pass --local'):
+                        aim_lab.main()
+                with patch.object(sys,'argv',['aim_lab.py','--local']):
+                    with self.assertRaisesRegex(RuntimeError,'requires DISPLAY'):
+                        aim_lab.main()
 
     def test_validate_prepares_before_build_and_real_graphics(self):
         steps=remote_worker.commands(dict(action='validate',python='python3',env={},jobs=2,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remote Godot + real SP pixels closed loop. Invoke through remote_run.py."""
+"""Godot + real SP pixels closed loop: remote_run.py, or explicit --local."""
 import argparse
 import hashlib
 import gzip
@@ -46,6 +46,7 @@ def performance_summary(report, vision, packets, engine_log):
 
 def main():
     p = argparse.ArgumentParser(description=__doc__)
+    p.add_argument('--local', action='store_true', help='Explicitly run on this computer instead of the SSH worker')
     p.add_argument('--scenario', choices=['static','spin','move'], default='static')
     p.add_argument('--seconds', type=float, default=25)
     p.add_argument('--aim-config', default='sp_vision_ros/configs/standard3.yaml')
@@ -55,16 +56,22 @@ def main():
     args = p.parse_args()
     if not 1 <= args.seconds <= 86400 or (args.health is not None and not 1 <= args.health <= 10000):
         p.error('Invalid duration/health')
-    if not (ROOT/'.zimiao-remote-worker').is_file():
-        raise RuntimeError('Use python3 tools/remote_run.py closed-loop; this entrypoint is remote-only.')
+    if not args.local and not (ROOT/'.zimiao-remote-worker').is_file():
+        raise RuntimeError('Use tools/remote_run.py closed-loop, or pass --local to explicitly run on this computer.')
     if not os.environ.get('DISPLAY'):
-        raise RuntimeError('Real camera requires DISPLAY. Use remote_run or xvfb-run; headless has no pixels.')
-    out = ROOT/'sp_vision_ros/artifacts'
-    out.mkdir(exist_ok=True)
+        raise RuntimeError('Real camera requires DISPLAY. Use a graphical desktop or xvfb-run; headless has no pixels.')
+    out = ROOT/('artifacts/local-aim' if args.local else 'sp_vision_ros/artifacts')
+    out.mkdir(parents=True,exist_ok=True)
     name = Path(args.output).name+'-'+args.scenario
     prefix = out/name
     config = prefix.with_suffix('.cfg')
     channel = 'sp_'+uuid.uuid4().hex
+    engine = ROOT/'rm_aim_sim/.tools/godot'
+    binary = ROOT/'sp_vision_ros/build-ros-ascii/sp_sim_ipc'
+    if not engine.is_file():
+        raise RuntimeError('Godot missing: run python3 rm_aim_sim/tools/setup_godot.py first.')
+    if not binary.is_file():
+        raise RuntimeError('SP client missing: build with bash sp_vision_sim/build.sh first.')
     text = (ROOT/args.sim_config).read_text()
     # ConfigFile allows a section once; change existing keys rather than appending duplicates.
     def replace(key, value):
@@ -76,8 +83,6 @@ def main():
     replace('rotate',str(args.scenario=='spin').lower())
     if args.health is not None: replace('max_health',str(args.health))
     config.write_text(text)
-    engine = ROOT/'rm_aim_sim/.tools/godot'
-    binary = ROOT/'sp_vision_ros/build-ros-ascii/sp_sim_ipc'
     provenance = {
         'aim_config': str(Path(args.aim_config)),
         'sim_config': str(Path(args.sim_config)),
@@ -86,7 +91,7 @@ def main():
         'binary_sha256':hashlib.sha256(binary.read_bytes()).hexdigest(),
         'engine_sha256':hashlib.sha256(engine.read_bytes()).hexdigest(),
         'upstream':(ROOT/'rm_aim_sim/UPSTREAM.md').read_text(),
-        'scenario':args.scenario,'seconds':args.seconds,
+        'scenario':args.scenario,'seconds':args.seconds,'execution':'local' if args.local else 'remote',
     }
     Path(str(prefix)+'-provenance.json').write_text(json.dumps(provenance,indent=2)+'\n')
     sim = aim = None
