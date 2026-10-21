@@ -1,0 +1,9 @@
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/tracker_interval_test.dir
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/tracker_geometry_probe.dir
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/planner_rollout_test.dir
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/fire_window_test.dir
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/inference_reuse_test.dir
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/planner_clock_test.dir
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/test.dir
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/edit_cache.dir
+/home/kendas/桌面/zimiao/sp_vision_25/build-tuning/CMakeFiles/rebuild_cache.dir

@@ -3,6 +3,7 @@
 import argparse
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import signal
@@ -71,11 +72,12 @@ def main():
     parser.add_argument('--base', choices=PROFILES, default='standard3')
     parser.add_argument('--aim-config')
     parser.add_argument('--sim-config')
-    parser.add_argument('--seconds', type=float, default=120)
+    parser.add_argument('--seconds', type=float, default=0, help='0 or omitted: run until stopped')
+    parser.add_argument('--max-fps', type=int, default=0, help='0 or omitted: uncapped rendering')
     parser.add_argument('--inside-display', action='store_true', help=argparse.SUPPRESS)
     args = parser.parse_args()
-    if not 10 <= args.seconds <= 86400:
-        parser.error('--seconds must be between 10 and 86400')
+    if not math.isfinite(args.seconds) or args.seconds<0 or args.max_fps<0:
+        parser.error('--seconds and --max-fps must be nonnegative (0 = unlimited)')
     for path in (ROOT / 'rm_aim_sim/.tools/godot',
                  ROOT / 'sp_vision_ros/build-ros-ascii/sp_sim_ipc'):
         if not path.is_file():
@@ -128,7 +130,7 @@ def main():
                                   'scenario': args.scenario, 'base': args.base,
                                   'configs': selected}), flush=True)
         # Keep simulator/algorithm output in the scheduler log, including the GPU adapter.
-        pair = subprocess.Popen([sys.executable, 'tools/aim_lab.py', '--seconds', str(args.seconds),
+        pair = subprocess.Popen([sys.executable, 'tools/aim_lab.py', '--seconds', str(args.seconds), '--max-fps', str(args.max_fps),
                                  '--scenario', args.scenario or 'static', '--aim-config',str(aim_config),
                                  '--sim-config',str(sim_config)],
                                 cwd=ROOT, env=env, start_new_session=True)

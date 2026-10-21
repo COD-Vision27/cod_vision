@@ -2,6 +2,7 @@
 """Run on the SSH target; show the simulation in a local browser or target desktop."""
 import argparse
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -25,7 +26,8 @@ def main():
     parser.add_argument('--base', '--profile', choices=PROFILES, default='standard3')
     parser.add_argument('--aim-config', help='Custom YAML path relative to the workspace root')
     parser.add_argument('--sim-config', help='Custom simulator Godot CFG path relative to the workspace root')
-    parser.add_argument('--seconds', type=float, default=120)
+    parser.add_argument('--seconds', type=float, default=0, help='0 or omitted: run until stopped')
+    parser.add_argument('--max-fps', type=int, default=0, help='0 or omitted: uncapped rendering')
     parser.add_argument('--host', default=os.environ.get('ZIMIAO_REMOTE_HOST', 'wuxian-remote'))
     parser.add_argument('--user', default=os.environ.get('ZIMIAO_REMOTE_USER', 'wuxian'))
     parser.add_argument('--port', type=int, help='SSH port override; otherwise honor ~/.ssh/config')
@@ -34,7 +36,7 @@ def main():
     parser.add_argument('--no-open', action='store_true', help='Print browser URL without opening it')
     parser.add_argument('--verbose', action='store_true', help='Stream all simulator/algorithm diagnostics')
     args = parser.parse_args()
-    if not 10 <= args.seconds <= 86400 or not 1 <= args.local_port <= 65535 or (args.port is not None and not 1 <= args.port <= 65535):
+    if not math.isfinite(args.seconds) or args.seconds<0 or args.max_fps<0 or not 1 <= args.local_port <= 65535 or (args.port is not None and not 1 <= args.port <= 65535):
         parser.error('Invalid duration or port')
     if any(not re.fullmatch(r'[a-zA-Z0-9_.-]+', value) for value in (args.host, args.user)):
         parser.error('Invalid host/user')
@@ -57,7 +59,7 @@ def main():
         ssh += ['-i', str(Path(args.identity).expanduser())]
     command = [sys.executable, '-u', str(ROOT / 'tools/remote_run.py'), *common,
                'run', '--', 'python3', '-u', 'tools/sim_view_worker.py', '--view', args.view,
-               '--base', args.base, '--seconds', str(args.seconds),
+               '--base', args.base, '--seconds', str(args.seconds), '--max-fps', str(args.max_fps),
                '--aim-config', str(aim_config.relative_to(ROOT)),
                '--sim-config', str(sim_config.relative_to(ROOT))]
     if args.scenario:

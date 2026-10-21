@@ -7,6 +7,7 @@
 #include <yaml-cpp/yaml.h>
 #include <opencv2/imgcodecs.hpp>
 #include <condition_variable>
+#include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <mutex>
@@ -23,6 +24,7 @@ int main(int argc, char **argv) try {
   const auto config = std::filesystem::absolute(argv[1]);
   const auto prefix = std::filesystem::absolute(argv[4]);
   const double duration = std::stod(argv[3]);
+  if (!std::isfinite(duration) || duration<0) throw std::runtime_error("seconds must be finite and nonnegative (0 = unlimited)");
   auto cfg = YAML::LoadFile(config.string());
   // Simulator default leaves CPU capacity for rendering/physics; explicit 0 restores OpenVINO auto.
   if (!cfg["inference_num_threads"]) cfg["inference_num_threads"]=4;
@@ -122,7 +124,7 @@ int main(int argc, char **argv) try {
   const auto start = Clock::now();
   auto next = start;
   Json final_state;
-  while (!exiting && std::chrono::duration<double>(Clock::now()-start).count() < duration) {
+  while (!exiting && (duration==0 || std::chrono::duration<double>(Clock::now()-start).count() < duration)) {
     if (client.poll_state()) {
       const auto &state=client.state();
       const auto context=LocalSimClient::frame_context(state);

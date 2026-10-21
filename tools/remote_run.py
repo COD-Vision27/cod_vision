@@ -38,6 +38,7 @@ def parse_args():
     parser.add_argument("--skip-build", action="store_true")
     parser.add_argument("--scenario", choices=["static", "spin", "move", "all"], default="all")
     parser.add_argument("--seconds", type=float, default=25)
+    parser.add_argument("--max-fps", type=int, default=0, help="Render FPS cap; 0 = unlimited")
     parser.add_argument("--lock-timeout", type=float, default=600,
                         help="Seconds to wait for another remote job")
     parser.add_argument("--dry-run", action="store_true", help="Print plan without connecting")
@@ -48,7 +49,7 @@ def parse_args():
     args.command = args.command[1:] if args.command[:1] == ["--"] else args.command
     if not re.fullmatch(r"[a-zA-Z0-9_.-]+", args.user) or not re.fullmatch(r"[a-zA-Z0-9_.-]+", args.host):
         parser.error("Invalid SSH host/user")
-    if (args.port is not None and not 1 <= args.port <= 65535) or args.jobs < 1 or args.seconds <= 0 or args.lock_timeout < 0:
+    if (args.port is not None and not 1 <= args.port <= 65535) or args.jobs < 1 or args.seconds <= 0 or args.lock_timeout < 0 or args.max_fps < 0:
         parser.error("Invalid port, concurrency, duration or lock timeout")
     if not re.fullmatch(r"[a-zA-Z0-9_./~-]+", args.remote_dir):
         parser.error("remote-dir must be an ASCII path")
@@ -70,7 +71,7 @@ def main():
     run_id = datetime.datetime.now().astimezone().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:8]
     job = {"id": run_id, "action": args.action, "python": args.python,
            "jobs": args.jobs, "env": args.environment, "skip_build": args.skip_build,
-           "scenario": args.scenario, "seconds": args.seconds, "command": args.command}
+           "scenario": args.scenario, "seconds": args.seconds, "max_fps": args.max_fps, "command": args.command}
     if args.dry_run:
         print(json.dumps({"target": f"{args.user}@{args.host}", "directory": args.remote_dir,
                           "job": job, "excludes": EXCLUDES, "local_fallback": False}, indent=2))

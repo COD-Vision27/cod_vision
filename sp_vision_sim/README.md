@@ -34,10 +34,12 @@ SP 在线输入是实际 RGB 图像、该帧相机标定与该帧云台姿态，
 
 相机标定按同步 frame 元数据生成临时 YAML，实机标定文件不被覆盖。旧 Bevy 几何只留小型历史回归 fixture。ROS 接入源码与消息定义仍可单独通过 `sp_vision_ros/scripts/build_ros.sh` 构建，但不属于当前仿真数据链路。
 
-Godot 客户端显式选择 RTX 4060 / Vulkan Mobile、关闭 V-Sync、限制最高 120 FPS；实际 FPS 会随负载变化。Xvfb 下默认 OpenGL 可能落到 llvmpipe 软件渲染，不能仅看到窗口启动就认为在使用 GPU。
+Godot 客户端使用 Vulkan Mobile、关闭 V-Sync，默认不限帧率，通过 `--max-fps` 自由设置上限（0 表示不限）；实际 FPS 会随负载变化。Xvfb 下默认 OpenGL 可能落到 llvmpipe 软件渲染，不能仅看到窗口启动就认为在使用 GPU。
 
 逐帧原始 JSONL 默认无损 gzip 压缩后回传，可用 `gzip -dc` 或 Python `gzip.open` 读取，避免反复测试占用大量本机空间。`*-provenance.json` 记录输入配置、实际仿真 CFG、引擎与程序 SHA256。
 
 更换主机可执行 `python3 tools/remote_run.py --host sim-new --user YOUR_USER --seconds 15 validate`。首次准备、依赖要求、快速复测和帧率指标见 [新主机验证说明](../docs/new-worker-validation.md)。
 
 [本机开窗口及本机 SP 自瞄使用说明](../docs/local-simulator.md)；完整本机入口：`python3 tools/aim_lab.py --local --scenario static --seconds 30`（需先准备引擎并完成本机构建）。
+
+交互式 `tools/aim_lab.py --local` 与 `tools/sim_view.py` 默认不限时长，关闭窗口或 Ctrl+C 退出；可选 `--seconds N` 定时、`--max-fps N` 设渲染上限。SP 客户端支持 0 秒不限时长，更新后需重新构建一次。

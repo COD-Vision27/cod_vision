@@ -50,8 +50,8 @@ def commands(job):
         return [job["command"]]
     if action in {"sim", "aim"}:
         if action == "sim":
-            return [graphics(["bash", "rm_aim_sim/run.sh"] + job["command"])]
-        return ([] if job["skip_build"] else build) + [graphics([python, "tools/aim_lab.py"] + job["command"])]
+            return [graphics(["bash", "rm_aim_sim/run.sh", "--disable-vsync", "--max-fps", str(job.get("max_fps",0))] + job["command"])]
+        return ([] if job["skip_build"] else build) + [graphics([python, "tools/aim_lab.py", "--max-fps", str(job.get("max_fps",0))] + job["command"])]
     steps = []
     if action == "validate":
         steps += [[python, "tools/host_preflight.py"],
@@ -67,7 +67,7 @@ def commands(job):
     scenarios = ["static", "spin", "move"] if job["scenario"] == "all" else [job["scenario"]]
     for scenario in scenarios:
         steps.append(graphics([python, "tools/aim_lab.py", "--scenario", scenario,
-                               "--seconds", str(job["seconds"])]))
+                               "--seconds", str(job["seconds"]), "--max-fps", str(job.get("max_fps",0))]))
     if action in {"test", "validate"}:
         # Use a real frame from this run, after closed-loop collection, never a stale PASS artifact.
         sample = "aim-lab-" + scenarios[0] + "-first.png"

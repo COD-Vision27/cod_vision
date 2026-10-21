@@ -33,3 +33,5 @@ python3 tools/remote_run.py --skip-build --scenario static --seconds 25 closed-l
 更换主机可执行 `python3 tools/remote_run.py --host sim-new --user YOUR_USER --seconds 15 validate`。首次准备、依赖要求、快速复测和帧率指标见 [新主机验证说明](docs/new-worker-validation.md)。
 
 [本机开窗口及本机 SP 自瞄使用说明](docs/local-simulator.md)；完整本机入口：`python3 tools/aim_lab.py --local --scenario static --seconds 30`（需先准备引擎并完成本机构建）。
+
+交互式本机入口 `python3 tools/aim_lab.py --local`、远程窗口入口 `python3 tools/sim_view.py` 默认持续运行、不限帧率；用 `--seconds 30` 定时，或 `--max-fps 60` 设置渲染上限。关闭窗口或 Ctrl+C 停止。
